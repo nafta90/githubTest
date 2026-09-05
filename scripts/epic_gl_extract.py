@@ -238,12 +238,14 @@ def _write_sheet(wb: openpyxl.Workbook, title: str, columns: list[str], rows: li
     ws.freeze_panes = "A2"
 
 
-def write_workbook(gl_rows: list[dict], detail_rows: list[dict], output_path: Path) -> None:
+def write_workbook(gl_rows: list[dict] | None, detail_rows: list[dict] | None, output_path: Path) -> None:
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
-    _write_sheet(wb, "acct-level extract", GL_COLUMNS, gl_rows, date_cols=set())
-    _write_sheet(wb, "detail extract", DETAIL_COLUMNS, detail_rows,
-                 date_cols={"activity date", "from date", "to date"})
+    if gl_rows is not None:
+        _write_sheet(wb, "acct-level extract", GL_COLUMNS, gl_rows, date_cols=set())
+    if detail_rows is not None:
+        _write_sheet(wb, "detail extract", DETAIL_COLUMNS, detail_rows,
+                     date_cols={"activity date", "from date", "to date"})
     wb.save(output_path)
 
 
@@ -253,34 +255,41 @@ def write_workbook(gl_rows: list[dict], detail_rows: list[dict], output_path: Pa
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--gl", required=True, type=Path, help="Path to fi_gl_transactions<Month>.txt")
-    parser.add_argument("--detail", required=True, type=Path, help="Path to detailCODGL<Month>.txt")
+    parser.add_argument("--gl", type=Path, help="Path to fi_gl_transactions<Month>.txt")
+    parser.add_argument("--detail", type=Path, help="Path to detailCODGL<Month>.txt")
     parser.add_argument("--output", required=True, type=Path, help="Path to write the output .xlsx")
     args = parser.parse_args(argv)
 
-    gl_rows, control = parse_gl_file(args.gl)
-    detail_rows = parse_detail_file(args.detail)
+    if args.gl is None and args.detail is None:
+        parser.error("provide at least one of --gl or --detail")
 
-    print(f"Parsed {len(gl_rows)} acct-level rows from {args.gl.name}")
-    print(f"Parsed {len(detail_rows)} detail rows from {args.detail.name}")
+    gl_rows = None
+    if args.gl is not None:
+        gl_rows, control = parse_gl_file(args.gl)
+        print(f"Parsed {len(gl_rows)} acct-level rows from {args.gl.name}")
 
-    if control["expected_count"] is not None:
-        if control["expected_count"] != len(gl_rows):
-            print(
-                f"WARNING: trailer record reports {control['expected_count']} rows, "
-                f"parsed {len(gl_rows)}. Check the fixed-width column positions in "
-                f"parse_gl_file() against this file's layout.",
-                file=sys.stderr,
-            )
-        actual_total_cents = sum(row["amt"] for row in gl_rows)
-        if control["expected_total_cents"] != actual_total_cents:
-            print(
-                f"WARNING: trailer record reports total {control['expected_total_cents']} cents, "
-                f"parsed total {actual_total_cents} cents.",
-                file=sys.stderr,
-            )
-        else:
-            print("Control totals OK: row count and amount total match the trailer record.")
+        if control["expected_count"] is not None:
+            if control["expected_count"] != len(gl_rows):
+                print(
+                    f"WARNING: trailer record reports {control['expected_count']} rows, "
+                    f"parsed {len(gl_rows)}. Check the fixed-width column positions in "
+                    f"parse_gl_file() against this file's layout.",
+                    file=sys.stderr,
+                )
+            actual_total_cents = sum(row["amt"] for row in gl_rows)
+            if control["expected_total_cents"] != actual_total_cents:
+                print(
+                    f"WARNING: trailer record reports total {control['expected_total_cents']} cents, "
+                    f"parsed total {actual_total_cents} cents.",
+                    file=sys.stderr,
+                )
+            else:
+                print("Control totals OK: row count and amount total match the trailer record.")
+
+    detail_rows = None
+    if args.detail is not None:
+        detail_rows = parse_detail_file(args.detail)
+        print(f"Parsed {len(detail_rows)} detail rows from {args.detail.name}")
 
     write_workbook(gl_rows, detail_rows, args.output)
     print(f"Wrote {args.output}")
