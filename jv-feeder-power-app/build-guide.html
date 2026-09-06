@@ -1,0 +1,785 @@
+<title>JV Feeder Generator Build Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1C2B45; --steel:#3E6B8A; --gold:#C98A2C; --sage:#4F7A63; --red:#B4443A;
+    --paper:#EEF1ED; --card:#FFFFFF; --line:#D7DCD5; --ink:#1C2B45; --inkmute:#5B6673;
+    --code-bg:#182338; --code-ink:#DCE3EA; --code-mute:#8FA0B8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --navy:#0F1826; --steel:#7FA7C4; --gold:#DDA646; --sage:#7CAE8F; --red:#DD7A6D;
+      --paper:#0B1220; --card:#141F33; --line:#2A3B54; --ink:#E7ECF2; --inkmute:#93A2B8;
+      --code-bg:#0A1220; --code-ink:#D6E0EC; --code-mute:#7488A3;
+    }
+  }
+  :root[data-theme="dark"]{
+    --navy:#0F1826; --steel:#7FA7C4; --gold:#DDA646; --sage:#7CAE8F; --red:#DD7A6D;
+    --paper:#0B1220; --card:#141F33; --line:#2A3B54; --ink:#E7ECF2; --inkmute:#93A2B8;
+    --code-bg:#0A1220; --code-ink:#D6E0EC; --code-mute:#7488A3;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;}
+  a{color:var(--steel);}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;color:var(--ink);text-wrap:balance;margin:0;}
+  code, .mono{font-family:'IBM Plex Mono',monospace;}
+  ::selection{background:var(--steel);color:#fff;}
+
+  .shell{display:flex;max-width:1280px;margin:0 auto;}
+
+  /* Sidebar */
+  .sidebar{
+    width:250px;flex-shrink:0;position:sticky;top:0;align-self:flex-start;
+    height:100vh;overflow-y:auto;padding:32px 20px 32px 28px;border-right:1px solid var(--line);
+  }
+  .sidebar .brand{font-family:'Fraunces',serif;font-weight:600;font-size:16.5px;color:var(--ink);margin-bottom:2px;}
+  .sidebar .brand-sub{font-size:11.5px;color:var(--inkmute);margin-bottom:26px;}
+  .navlist{list-style:none;margin:0;padding:0;}
+  .navlist li{margin-bottom:2px;}
+  .navlist label{
+    display:flex;align-items:flex-start;gap:9px;padding:7px 8px;border-radius:5px;
+    font-size:13px;color:var(--inkmute);cursor:pointer;line-height:1.4;
+  }
+  .navlist label:hover{background:var(--card);}
+  .navlist input{margin-top:3px;flex-shrink:0;accent-color:var(--sage);}
+  .navlist a{color:inherit;text-decoration:none;}
+  .navlist a:hover{color:var(--ink);}
+  .navlist .done a{text-decoration:line-through;color:var(--inkmute);opacity:.65;}
+  .progress-track{height:4px;background:var(--line);border-radius:2px;margin:16px 0 22px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--sage);width:0%;transition:width .25s ease;}
+  .progress-label{font-size:11px;color:var(--inkmute);margin-bottom:6px;}
+
+  /* Main */
+  main{flex:1;min-width:0;padding:44px 56px 100px;}
+  .kicker{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--steel);font-weight:600;margin-bottom:10px;}
+  .title{font-size:34px;line-height:1.12;margin-bottom:14px;}
+  .lede{font-size:15.5px;color:var(--inkmute);line-height:1.6;max-width:640px;margin-bottom:36px;}
+
+  .overview{
+    display:flex;gap:0;border:1px solid var(--line);border-radius:6px;background:var(--card);
+    overflow:hidden;margin-bottom:56px;
+  }
+  .overview > div{flex:1;padding:18px 20px;border-left:1px solid var(--line);}
+  .overview > div:first-child{border-left:none;}
+  .overview .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--steel);font-weight:600;margin-bottom:6px;}
+  .overview .v{font-size:13.5px;line-height:1.5;}
+
+  section.phase{margin-bottom:64px;scroll-margin-top:24px;}
+  .phase-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px;padding-bottom:14px;border-bottom:2px solid var(--navy);}
+  .phase-num{
+    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--card);background:var(--navy);
+    width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .phase-head h2{font-size:22px;}
+  .phase-sub{font-size:13.5px;color:var(--inkmute);margin:10px 0 24px;line-height:1.6;max-width:680px;}
+
+  .step{display:flex;gap:16px;margin-bottom:22px;}
+  .step-n{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--steel);flex-shrink:0;
+    width:26px;height:26px;border:1.5px solid var(--steel);border-radius:50%;display:flex;
+    align-items:center;justify-content:center;margin-top:1px;
+  }
+  .step-body{flex:1;min-width:0;}
+  .step-body h4{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:14.5px;margin:0 0 5px;color:var(--ink);}
+  .step-body p{font-size:13.5px;line-height:1.6;color:var(--inkmute);margin:0 0 8px;}
+  .step-body ul{margin:6px 0 8px;padding-left:20px;font-size:13.5px;line-height:1.6;color:var(--inkmute);}
+  .step-body li{margin-bottom:3px;}
+
+  code.inline{background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:1px 6px;font-size:12.5px;color:var(--ink);}
+
+  .codeblock{position:relative;background:var(--code-bg);border-radius:6px;margin:10px 0 14px;overflow:hidden;}
+  .codeblock .cb-head{
+    display:flex;align-items:center;justify-content:space-between;padding:9px 14px;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+  }
+  .codeblock .cb-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--code-mute);letter-spacing:.03em;}
+  .codeblock .cb-copy{
+    font-family:'IBM Plex Sans',sans-serif;font-size:11px;color:var(--code-mute);background:none;
+    border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:4px 9px;cursor:pointer;
+  }
+  .codeblock .cb-copy:hover{color:var(--code-ink);border-color:rgba(255,255,255,0.3);}
+  .codeblock pre{margin:0;padding:14px 16px;overflow-x:auto;}
+  .codeblock code{font-size:12.5px;line-height:1.6;color:var(--code-ink);white-space:pre;}
+
+  .callout{border:1px solid var(--line);border-radius:6px;background:var(--card);padding:14px 18px;margin:14px 0 20px;display:flex;gap:11px;}
+  .callout svg{flex-shrink:0;margin-top:2px;}
+  .callout .ct{font-size:13px;font-weight:600;margin-bottom:3px;}
+  .callout .cb{font-size:13px;line-height:1.55;color:var(--inkmute);}
+  .callout.tip .ct{color:var(--sage);} .callout.tip svg{stroke:var(--sage);}
+  .callout.warn .ct{color:var(--gold);} .callout.warn svg{stroke:var(--gold);}
+  .callout.pitfall .ct{color:var(--red);} .callout.pitfall svg{stroke:var(--red);}
+
+  table.reftable{width:100%;border-collapse:collapse;margin:14px 0 20px;font-size:13px;}
+  table.reftable th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--inkmute);font-weight:600;padding:0 10px 8px;border-bottom:1.5px solid var(--navy);}
+  table.reftable td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5;}
+  table.reftable td.mono{font-family:'IBM Plex Mono',monospace;font-size:12px;}
+
+  .flowdiagram{display:flex;align-items:stretch;gap:0;margin:8px 0 22px;flex-wrap:wrap;}
+  .flowdiagram .fnode{
+    background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 16px;
+    font-size:12.5px;line-height:1.4;min-width:130px;
+  }
+  .flowdiagram .fnode .ft{font-weight:600;font-size:12.5px;margin-bottom:2px;}
+  .flowdiagram .fnode .fs{color:var(--inkmute);font-size:11.5px;}
+  .flowdiagram .farrow{display:flex;align-items:center;justify-content:center;padding:0 8px;color:var(--inkmute);}
+
+  @media (max-width: 900px){
+    .sidebar{display:none;}
+    main{padding:32px 24px 80px;}
+  }
+</style>
+
+<div class="shell">
+
+  <nav class="sidebar">
+    <div class="brand">JV Feeder Generator</div>
+    <div class="brand-sub">Build guide &middot; Power Apps</div>
+    <div class="progress-label"><span id="progress-text">0 of 6 phases checked off</span></div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <ul class="navlist" id="navlist">
+      <li><label><input type="checkbox" data-phase="0"><a href="#phase-0">0&nbsp; Before You Start</a></label></li>
+      <li><label><input type="checkbox" data-phase="1"><a href="#phase-1">1&nbsp; SharePoint Setup</a></label></li>
+      <li><label><input type="checkbox" data-phase="2"><a href="#phase-2">2&nbsp; Office Scripts</a></label></li>
+      <li><label><input type="checkbox" data-phase="3"><a href="#phase-3">3&nbsp; Power Automate Flows</a></label></li>
+      <li><label><input type="checkbox" data-phase="4"><a href="#phase-4">4&nbsp; Canvas App</a></label></li>
+      <li><label><input type="checkbox" data-phase="5"><a href="#phase-5">5&nbsp; Test End-to-End</a></label></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="kicker">Build Guide</div>
+    <h1 class="title">Building the JV Feeder Generator in Power Apps</h1>
+    <p class="lede">A phase-by-phase walkthrough for building the Canvas App mockup as a real app &mdash; SharePoint, two Office Scripts, two Power Automate flows, and the app's three screens. Written for someone who hasn't built in Power Apps or Office Scripts before. Check off phases in the sidebar as you go &mdash; your progress is saved in this browser.</p>
+
+    <div class="overview">
+      <div><div class="k">What you're replacing</div><div class="v"><code class="inline">populate_jv_feeder.py</code> &mdash; a script only one person could run.</div></div>
+      <div><div class="k">Connectors used</div><div class="v">SharePoint &amp; Excel Online (Business) &mdash; both standard, no premium license required for the people who'll use the app.</div></div>
+      <div><div class="k">Time estimate</div><div class="v">A focused first pass: half a day for setup + scripts, half a day for the flows and app.</div></div>
+    </div>
+
+    <!-- PHASE 0 -->
+    <section class="phase" id="phase-0">
+      <div class="phase-head"><div class="phase-num">0</div><h2>Before You Start</h2></div>
+      <p class="phase-sub">What you need in hand before opening Power Apps Studio.</p>
+
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body">
+          <h4>Gather three files</h4>
+          <ul>
+            <li>The blank <code class="inline">JVFeederTemplate.xlsx</code> (just the header row, no data)</li>
+            <li>A sample extract file (.xlsx or .csv) to test with</li>
+            <li>The two Office Script files: <code class="inline">ReadSourceRows.ts</code> and <code class="inline">PopulateFeederTemplate.ts</code></li>
+          </ul>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body">
+          <h4>Confirm access</h4>
+          <p>You'll need: a SharePoint site you can create document libraries in, Power Apps + Power Automate licensing (you've confirmed premium works for your org), and Excel Online access to that same SharePoint site.</p>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div><div class="ct">Build one phase at a time</div><div class="cb">Each phase below is testable on its own before you move to the next &mdash; test the scripts in Excel before wiring them into a flow, test each flow in Power Automate's test panel before calling it from the app. Skipping ahead is where most of the debugging pain comes from.</div></div>
+      </div>
+    </section>
+
+    <!-- PHASE 1 -->
+    <section class="phase" id="phase-1">
+      <div class="phase-head"><div class="phase-num">1</div><h2>Set Up SharePoint</h2></div>
+      <p class="phase-sub">A working area for the app's files. Everything here uses the standard SharePoint connector.</p>
+
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body">
+          <h4>Create a document library</h4>
+          <p>On the SharePoint site you'll use, create a new document library called <code class="inline">JV Feeder Files</code>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body">
+          <h4>Create three folders inside it</h4>
+          <ul>
+            <li><code class="inline">Templates</code> &mdash; holds the blank feeder template, nobody else writes here</li>
+            <li><code class="inline">Uploads</code> &mdash; temporary copies of what users upload</li>
+            <li><code class="inline">Outputs</code> &mdash; generated feeders, ready for download</li>
+          </ul>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body">
+          <h4>Upload the blank template</h4>
+          <p>Put <code class="inline">JVFeederTemplate.xlsx</code> into the <code class="inline">Templates</code> folder. This exact file is copied fresh every time someone generates a feeder &mdash; it's never edited directly.</p>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><div class="ct">Financial data, temporary files</div><div class="cb">Uploads and Outputs will accumulate files with real GL data. Once the app works, come back and add a short-retention policy &mdash; either a scheduled flow that deletes anything older than a few days, or a SharePoint retention policy on those two folders.</div></div>
+      </div>
+    </section>
+
+    <!-- PHASE 2 -->
+    <section class="phase" id="phase-2">
+      <div class="phase-head"><div class="phase-num">2</div><h2>Build the Office Scripts</h2></div>
+      <p class="phase-sub">Office Scripts are TypeScript snippets that run against an Excel file. They do the same job <code class="inline">map_row()</code> and <code class="inline">write_feeder()</code> did in the Python script &mdash; you're pasting in code that already exists, not writing it from scratch.</p>
+
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body">
+          <h4>Open the Automate tab</h4>
+          <p>Open any Excel file from your SharePoint site in Excel Online (the blank template works fine). Click the <strong>Automate</strong> tab in the ribbon, then <strong>New Script</strong>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body">
+          <h4>Create "ReadSourceRows"</h4>
+          <p>Delete the boilerplate <code class="inline">function main(workbook: ExcelScript.Workbook) {…}</code> that's there by default, and paste in the full script below. Rename the script (top-left, click the default name) to <code class="inline">ReadSourceRows</code> and save.</p>
+        </div>
+      </div>
+
+      <div class="codeblock">
+        <div class="cb-head"><span class="cb-label">ReadSourceRows.ts</span><button class="cb-copy" data-copy="cb-readsource">Copy</button></div>
+        <pre><code id="cb-readsource">function main(workbook: ExcelScript.Workbook): string {
+  const sheet = workbook.getWorksheets()[0];
+  const usedRange = sheet.getUsedRange();
+
+  if (!usedRange) {
+    return JSON.stringify({ headers: [], rows: [] });
+  }
+
+  const values = usedRange.getValues();
+  const headers = values[0].map((h) => String(h ?? "").trim());
+
+  const rows = values
+    .slice(1)
+    .filter((row) => row.some((cell) => cell !== "" && cell !== null))
+    .map((row) => {
+      const obj: Record&lt;string, string | number | boolean&gt; = {};
+      headers.forEach((h, i) =&gt; {
+        obj[h] = row[i];
+      });
+      return obj;
+    });
+
+  return JSON.stringify({ headers, rows });
+}</code></pre>
+      </div>
+
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body">
+          <h4>Test it</h4>
+          <p>With your sample extract file open in Excel Online instead, run this script from the Automate tab (or point the script at it). It should return something like <code class="inline">{"headers":["Rule Code","Trans Date",...],"rows":[...]}</code>. If it returns empty, check that your data starts in row 1 of the first worksheet.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">4</div>
+        <div class="step-body">
+          <h4>Create "PopulateFeederTemplate"</h4>
+          <p>Same process &mdash; new script, paste the code below, name it <code class="inline">PopulateFeederTemplate</code>.</p>
+        </div>
+      </div>
+
+      <div class="codeblock">
+        <div class="cb-head"><span class="cb-label">PopulateFeederTemplate.ts</span><button class="cb-copy" data-copy="cb-populate">Copy</button></div>
+        <pre><code id="cb-populate">const COA_VALUE = 2;
+
+const UNUSED_FEEDER_COLUMNS = [
+  "ACTIVITY", "LOCATION", "ENCDNUM", "ENCDITEMNUM",
+  "ENCDSEQNUM", "ENCDACTIONIND", "ENCBTYPE",
+];
+
+interface MappingOptions {
+  amountDivideBy100: boolean;
+  ruleCodeStripPrefix: boolean;
+}
+
+type CellValue = string | number | boolean;
+type SourceRow = Record&lt;string, CellValue&gt;;
+
+function stripRuleCodePrefix(value: CellValue | undefined): CellValue | null {
+  if (value === undefined || value === null || value === "") return null;
+  const s = String(value).trim();
+  const last3 = s.slice(-3);
+  return /^\d+$/.test(last3) ? Number(last3) : last3;
+}
+
+function stripBankCodeSuffix(value: CellValue | undefined): CellValue | null {
+  if (value === undefined || value === null || value === "") return null;
+  let s = String(value).trim();
+  if (s.endsWith("2")) s = s.slice(0, -1);
+  return s === "" ? null : s;
+}
+
+function toAmount(value: CellValue | undefined, divideBy100: boolean): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  if (Number.isNaN(n)) return null;
+  const dollars = divideBy100 ? n / 100 : n;
+  return Math.round(dollars * 100) / 100;
+}
+
+function mapRow(
+  sourceRow: SourceRow,
+  mapping: Record&lt;string, string | null&gt;,
+  options: MappingOptions
+): Record&lt;string, CellValue | null&gt; {
+  const fromSource = (feederCol: string): CellValue | undefined =&gt; {
+    const sourceHeader = mapping[feederCol];
+    if (!sourceHeader) return undefined;
+    return sourceRow[sourceHeader];
+  };
+
+  const result: Record&lt;string, CellValue | null&gt; = {
+    RULECODE: options.ruleCodeStripPrefix
+      ? stripRuleCodePrefix(fromSource("RULECODE"))
+      : fromSource("RULECODE") ?? null,
+    DOCREFERENCENUMBER: fromSource("DOCREFERENCENUMBER") ?? null,
+    AMOUNT: toAmount(fromSource("AMOUNT"), options.amountDivideBy100),
+    DESCRIPTION: fromSource("DESCRIPTION") ?? null,
+    "SIGN (+/-)": fromSource("SIGN (+/-)") ?? null,
+    BANKCODE: stripBankCodeSuffix(fromSource("BANKCODE")),
+    COA: COA_VALUE,
+    FUND: fromSource("FUND") ?? null,
+    ORG: fromSource("ORG") ?? null,
+    ACCOUNT: fromSource("ACCOUNT") ?? null,
+    PROGRAM: fromSource("PROGRAM") ?? null,
+  };
+
+  for (const col of UNUSED_FEEDER_COLUMNS) {
+    result[col] = null;
+  }
+
+  return result;
+}
+
+function main(
+  workbook: ExcelScript.Workbook,
+  sourceDataJson: string,
+  columnMappingJson: string,
+  optionsJson: string
+): number {
+  const { rows } = JSON.parse(sourceDataJson) as { headers: string[]; rows: SourceRow[] };
+  const mapping = JSON.parse(columnMappingJson) as Record&lt;string, string | null&gt;;
+  const options = JSON.parse(optionsJson) as MappingOptions;
+
+  const sheet = workbook.getWorksheets()[0];
+  const usedRange = sheet.getUsedRange();
+  if (!usedRange) {
+    throw new Error("Template sheet has no header row.");
+  }
+
+  const feederHeader = usedRange.getValues()[0].map((h) =&gt; String(h ?? "").trim());
+  const feederRows = rows.map((r) =&gt; mapRow(r, mapping, options));
+
+  const outputValues: CellValue[][] = feederRows.map((row) =&gt;
+    feederHeader.map((col) =&gt; {
+      const v = row[col];
+      return v === undefined || v === null ? "" : v;
+    })
+  );
+
+  if (outputValues.length === 0) return 0;
+
+  const startRow = usedRange.getRowCount();
+  const targetRange = sheet.getRangeByIndexes(startRow, 0, outputValues.length, feederHeader.length);
+  targetRange.setValues(outputValues);
+
+  return outputValues.length;
+}</code></pre>
+      </div>
+
+      <div class="callout pitfall">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><div class="ct">Scripts are personal by default</div><div class="cb">A script you create is only runnable by you unless your tenant has the Office Scripts admin setting for sharing scripts turned on. For now, build and own the Power Automate flows under your own account &mdash; that's enough to get the app working end to end.</div></div>
+      </div>
+    </section>
+
+    <!-- PHASE 3 -->
+    <section class="phase" id="phase-3">
+      <div class="phase-head"><div class="phase-num">3</div><h2>Build the Power Automate Flows</h2></div>
+      <p class="phase-sub">Two flows, each self-contained &mdash; test each one on its own in Power Automate's test panel before touching Power Apps.</p>
+
+      <div class="flowdiagram">
+        <div class="fnode"><div class="ft">PowerApps (V2) trigger</div><div class="fs">SourceFile</div></div>
+        <div class="farrow">&rarr;</div>
+        <div class="fnode"><div class="ft">Create file</div><div class="fs">save to /Uploads</div></div>
+        <div class="farrow">&rarr;</div>
+        <div class="fnode"><div class="ft">Run script</div><div class="fs">ReadSourceRows</div></div>
+        <div class="farrow">&rarr;</div>
+        <div class="fnode"><div class="ft">Respond</div><div class="fs">HeadersJson</div></div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body">
+          <h4>Create Flow A &mdash; "JVFeeder - Get Headers"</h4>
+          <p>New flow &rarr; <strong>Instant cloud flow</strong> &rarr; trigger <strong>PowerApps (V2)</strong>. Add one input: <code class="inline">SourceFile</code>, type <strong>File</strong>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body">
+          <h4>Add "Create file" (SharePoint)</h4>
+          <ul>
+            <li>Site Address: your SharePoint site</li>
+            <li>Folder Path: <code class="inline">/JV Feeder Files/Uploads</code></li>
+            <li>File Name: <code class="inline">concat(utcNow('yyyyMMddHHmmss'), '_', triggerBody()['SourceFile']['name'])</code></li>
+            <li>File Content: the <code class="inline">SourceFile</code> dynamic content</li>
+          </ul>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body">
+          <h4>Add "Run script" (Excel Online Business)</h4>
+          <p>Location/Site/Library: same SharePoint site and the <code class="inline">JV Feeder Files</code> library. File: pick the <strong>Id</strong> from the Create file step (use "Enter custom value" and insert the dynamic content). Script: <code class="inline">ReadSourceRows</code>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">4</div>
+        <div class="step-body">
+          <h4>Add "Respond to a PowerApp or flow"</h4>
+          <p>One output: <code class="inline">HeadersJson</code>, type <strong>Text</strong>, value = the Run script step's <code class="inline">result</code>.</p>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div><div class="ct">Test before moving on</div><div class="cb">Save the flow, click Test &gt; Manually, upload your sample file when prompted. Confirm HeadersJson comes back with a real headers array before building Flow B.</div></div>
+      </div>
+
+      <div class="flowdiagram" style="margin-top:32px;">
+        <div class="fnode"><div class="ft">PowerApps (V2) trigger</div><div class="fs">SourceFile, ColumnMappingJson, OptionsJson</div></div>
+        <div class="farrow">&rarr;</div>
+        <div class="fnode"><div class="ft">Create file</div><div class="fs">/Uploads</div></div>
+        <div class="farrow">&rarr;</div>
+        <div class="fnode"><div class="ft">Run script</div><div class="fs">ReadSourceRows</div></div>
+        <div class="farrow">&rarr;</div>
+        <div class="fnode"><div class="ft">Copy file</div><div class="fs">Template &rarr; /Outputs</div></div>
+        <div class="farrow">&rarr;</div>
+        <div class="fnode"><div class="ft">Run script</div><div class="fs">PopulateFeederTemplate</div></div>
+        <div class="farrow">&rarr;</div>
+        <div class="fnode"><div class="ft">Get file properties</div><div class="fs">Link to item</div></div>
+        <div class="farrow">&rarr;</div>
+        <div class="fnode"><div class="ft">Respond</div><div class="fs">RowCount, OutputFileName, DownloadUrl</div></div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">5</div>
+        <div class="step-body">
+          <h4>Create Flow B &mdash; "JVFeeder - Generate Feeder"</h4>
+          <p>Same trigger type. Three inputs: <code class="inline">SourceFile</code> (File), <code class="inline">ColumnMappingJson</code> (Text), <code class="inline">OptionsJson</code> (Text).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">6</div>
+        <div class="step-body">
+          <h4>Repeat the Create file + Run script (ReadSourceRows) steps</h4>
+          <p>Identical to Flow A &mdash; this flow re-uploads the source file and re-reads it independently, so it doesn't depend on anything from Flow A having run first.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">7</div>
+        <div class="step-body">
+          <h4>Add "Copy file" (SharePoint)</h4>
+          <ul>
+            <li>Source: <code class="inline">/JV Feeder Files/Templates/JVFeederTemplate.xlsx</code></li>
+            <li>Destination: <code class="inline">/JV Feeder Files/Outputs</code></li>
+            <li>New file name: <code class="inline">concat('JVFeeder_output_', utcNow('yyyyMMdd_HHmmss'), '.xlsx')</code></li>
+            <li>If a file with this name already exists: <strong>Replace</strong></li>
+          </ul>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">8</div>
+        <div class="step-body">
+          <h4>Add a second "Run script"</h4>
+          <p>File: the <strong>Id</strong> from Copy file. Script: <code class="inline">PopulateFeederTemplate</code>. Three parameters appear automatically once you pick the script &mdash; fill them with the Run script (step 6)'s <code class="inline">result</code>, and the flow's <code class="inline">ColumnMappingJson</code> / <code class="inline">OptionsJson</code> inputs.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">9</div>
+        <div class="step-body">
+          <h4>Add "Get file properties" (SharePoint)</h4>
+          <p>File Identifier: the Id from Copy file. This gives you a <code class="inline">{Link to item}</code> output &mdash; the file's real URL.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">10</div>
+        <div class="step-body">
+          <h4>Add "Respond to a PowerApp or flow"</h4>
+          <p>Three outputs: <code class="inline">RowCount</code> (Number, from the second Run script's result), <code class="inline">OutputFileName</code> (Text, the filename you built in step 7), <code class="inline">DownloadUrl</code> (Text, the Link to item from step 9).</p>
+        </div>
+      </div>
+
+      <div class="callout pitfall">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><div class="ct">Why not send the file straight back to Power Apps?</div><div class="cb">It's possible, but handling raw file bytes in Power Fx is finicky and version-dependent. Handing back a download link to a file that's already sitting in SharePoint is far more reliable, and it's what step 12 in Phase 4 uses.</div></div>
+      </div>
+    </section>
+
+    <!-- PHASE 4 -->
+    <section class="phase" id="phase-4">
+      <div class="phase-head"><div class="phase-num">4</div><h2>Build the Canvas App</h2></div>
+      <p class="phase-sub">Three screens, matching the mockup. Formulas below are Power Fx &mdash; type them into the formula bar for the property named. Exact field names Power Apps generates from your flow outputs (like <code class="inline">.headersjson</code>) will show up in the formula bar's autocomplete once the flow is connected &mdash; use what it suggests if it differs slightly from below.</p>
+
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body">
+          <h4>Create the app and connect both flows</h4>
+          <p>New Canvas app (tablet format). In the left panel, add both <code class="inline">JVFeeder - Get Headers</code> and <code class="inline">JVFeeder - Generate Feeder</code> under Data &rarr; Power Automate.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body">
+          <h4>Set up App.OnStart</h4>
+          <p>Select the App object, OnStart property:</p>
+        </div>
+      </div>
+
+      <div class="codeblock">
+        <div class="cb-head"><span class="cb-label">App.OnStart</span><button class="cb-copy" data-copy="cb-onstart">Copy</button></div>
+        <pre><code id="cb-onstart">ClearCollect(
+    colRequiredColumns,
+    {FeederColumn: "RULECODE",           MappedTo: Blank()},
+    {FeederColumn: "DOCREFERENCENUMBER", MappedTo: Blank()},
+    {FeederColumn: "AMOUNT",             MappedTo: Blank()},
+    {FeederColumn: "DESCRIPTION",        MappedTo: Blank()},
+    {FeederColumn: "SIGN (+/-)",         MappedTo: Blank()},
+    {FeederColumn: "BANKCODE",           MappedTo: Blank()},
+    {FeederColumn: "FUND",               MappedTo: Blank()},
+    {FeederColumn: "ORG",                MappedTo: Blank()},
+    {FeederColumn: "ACCOUNT",            MappedTo: Blank()},
+    {FeederColumn: "PROGRAM",            MappedTo: Blank()}
+);
+Set(varAmountDivideBy100, false);
+Set(varRuleCodeStripPrefix, false);
+Set(varAttemptedGenerate, false);</code></pre>
+      </div>
+
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body">
+          <h4>Screen 1 &mdash; Upload</h4>
+          <p>Insert &rarr; Media &rarr; <strong>Attachment</strong> control, name it <code class="inline">uplSourceFile</code>. Add a "Next" button:</p>
+        </div>
+      </div>
+
+      <table class="reftable">
+        <tr><th>Control</th><th>Property</th><th>Formula</th></tr>
+        <tr><td class="mono">btnNext</td><td class="mono">DisplayMode</td><td class="mono">If(CountRows(uplSourceFile.Attachments)=0, DisplayMode.Disabled, DisplayMode.Edit)</td></tr>
+      </table>
+
+      <div class="codeblock">
+        <div class="cb-head"><span class="cb-label">btnNext.OnSelect</span><button class="cb-copy" data-copy="cb-btnnext">Copy</button></div>
+        <pre><code id="cb-btnnext">Set(varSourceFile, First(uplSourceFile.Attachments));
+Set(varHeadersResponse, 'JVFeeder-GetHeaders'.Run(varSourceFile.Value));
+Set(varHeadersParsed, ParseJSON(varHeadersResponse.headersjson));
+ClearCollect(
+    colDetectedHeaders,
+    ForAll(
+        Table(varHeadersParsed.headers),
+        {Header: Text(Value)}
+    )
+);
+Navigate(Screen2_MapColumns, ScreenTransition.Fade)</code></pre>
+      </div>
+
+      <div class="callout pitfall">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><div class="ct">The trickiest formula in this app</div><div class="cb"><code class="inline">ParseJSON</code> returns a dynamic value with no fixed shape, so Power Fx needs the explicit <code class="inline">Table()</code> / <code class="inline">Text()</code> wrapping above to turn it into a usable collection. If it errors, open the flow's outputs in the Power Apps monitor to see the exact JSON shape coming back, and adjust the wrapping to match.</div></div>
+      </div>
+
+      <div class="step">
+        <div class="step-n">4</div>
+        <div class="step-body">
+          <h4>Screen 2 &mdash; Map Columns</h4>
+          <p>Add a blank vertical <strong>Gallery</strong>, name it <code class="inline">galColumnMapping</code>, Items = <code class="inline">colRequiredColumns</code>. Inside the gallery template, add a Label and a Dropdown.</p>
+        </div>
+      </div>
+
+      <table class="reftable">
+        <tr><th>Control</th><th>Property</th><th>Formula</th></tr>
+        <tr><td class="mono">lblFeederCol</td><td class="mono">Text</td><td class="mono">ThisItem.FeederColumn</td></tr>
+        <tr><td class="mono">ddgMapping</td><td class="mono">Items</td><td class="mono">colDetectedHeaders</td></tr>
+        <tr><td class="mono">ddgMapping</td><td class="mono">Default</td><td class="mono">ThisItem.MappedTo</td></tr>
+        <tr><td class="mono">ddgMapping</td><td class="mono">BorderColor</td><td class="mono">If(varAttemptedGenerate && IsBlank(ThisItem.MappedTo), RGBA(180,68,58,1), RGBA(215,220,213,1))</td></tr>
+        <tr><td class="mono">tglAmountCents</td><td class="mono">Default</td><td class="mono">false</td></tr>
+        <tr><td class="mono">tglRuleCodePrefix</td><td class="mono">Default</td><td class="mono">false</td></tr>
+      </table>
+
+      <div class="codeblock">
+        <div class="cb-head"><span class="cb-label">ddgMapping.OnChange</span><button class="cb-copy" data-copy="cb-ddgchange">Copy</button></div>
+        <pre><code id="cb-ddgchange">Patch(
+    colRequiredColumns,
+    ThisItem,
+    {MappedTo: ddgMapping.Selected.Header}
+)</code></pre>
+      </div>
+
+      <div class="codeblock">
+        <div class="cb-head"><span class="cb-label">tglAmountCents.OnChange / tglRuleCodePrefix.OnChange</span><button class="cb-copy" data-copy="cb-toggles">Copy</button></div>
+        <pre><code id="cb-toggles">Set(varAmountDivideBy100, tglAmountCents.Value)
+
+// on the second toggle:
+Set(varRuleCodeStripPrefix, tglRuleCodePrefix.Value)</code></pre>
+      </div>
+
+      <div class="step">
+        <div class="step-n">5</div>
+        <div class="step-body">
+          <h4>Wire up "Generate Feeder"</h4>
+          <p>This button validates every row is mapped, builds the two JSON strings the flow needs, calls Flow B, and moves to Screen 3.</p>
+        </div>
+      </div>
+
+      <div class="codeblock">
+        <div class="cb-head"><span class="cb-label">btnGenerate.OnSelect</span><button class="cb-copy" data-copy="cb-btngenerate">Copy</button></div>
+        <pre><code id="cb-btngenerate">Set(varAttemptedGenerate, true);
+If(
+    CountRows(Filter(colRequiredColumns, IsBlank(MappedTo))) > 0,
+    Notify("Map every required column before generating.", NotificationType.Error),
+    (
+        Set(varColumnMappingJson,
+            "{" &
+            """RULECODE"":""" & LookUp(colRequiredColumns, FeederColumn = "RULECODE").MappedTo & """," &
+            """DOCREFERENCENUMBER"":""" & LookUp(colRequiredColumns, FeederColumn = "DOCREFERENCENUMBER").MappedTo & """," &
+            """AMOUNT"":""" & LookUp(colRequiredColumns, FeederColumn = "AMOUNT").MappedTo & """," &
+            """DESCRIPTION"":""" & LookUp(colRequiredColumns, FeederColumn = "DESCRIPTION").MappedTo & """," &
+            """SIGN (+/-)"":""" & LookUp(colRequiredColumns, FeederColumn = "SIGN (+/-)").MappedTo & """," &
+            """BANKCODE"":""" & LookUp(colRequiredColumns, FeederColumn = "BANKCODE").MappedTo & """," &
+            """FUND"":""" & LookUp(colRequiredColumns, FeederColumn = "FUND").MappedTo & """," &
+            """ORG"":""" & LookUp(colRequiredColumns, FeederColumn = "ORG").MappedTo & """," &
+            """ACCOUNT"":""" & LookUp(colRequiredColumns, FeederColumn = "ACCOUNT").MappedTo & """," &
+            """PROGRAM"":""" & LookUp(colRequiredColumns, FeederColumn = "PROGRAM").MappedTo & """" &
+            "}"
+        );
+        Set(varOptionsJson,
+            "{""amountDivideBy100"":" & If(varAmountDivideBy100, "true", "false") &
+            ",""ruleCodeStripPrefix"":" & If(varRuleCodeStripPrefix, "true", "false") & "}"
+        );
+        Set(varGenerateResponse, 'JVFeeder-Generate'.Run(varSourceFile.Value, varColumnMappingJson, varOptionsJson));
+        Set(varRowCount, varGenerateResponse.rowcount);
+        Set(varOutputFileName, varGenerateResponse.outputfilename);
+        Set(varDownloadUrl, varGenerateResponse.downloadurl);
+        Navigate(Screen3_Download, ScreenTransition.Fade)
+    )
+)</code></pre>
+      </div>
+
+      <div class="step">
+        <div class="step-n">6</div>
+        <div class="step-body">
+          <h4>Screen 3 &mdash; Download</h4>
+        </div>
+      </div>
+
+      <table class="reftable">
+        <tr><th>Control</th><th>Property</th><th>Formula</th></tr>
+        <tr><td class="mono">lblSummary</td><td class="mono">Text</td><td class="mono">varRowCount & " rows mapped into " & varOutputFileName</td></tr>
+        <tr><td class="mono">btnDownload</td><td class="mono">OnSelect</td><td class="mono">Launch(varDownloadUrl & "?download=1")</td></tr>
+      </table>
+
+      <div class="codeblock">
+        <div class="cb-head"><span class="cb-label">btnStartOver.OnSelect</span><button class="cb-copy" data-copy="cb-startover">Copy</button></div>
+        <pre><code id="cb-startover">Reset(uplSourceFile);
+ClearCollect(
+    colRequiredColumns,
+    {FeederColumn: "RULECODE",           MappedTo: Blank()},
+    {FeederColumn: "DOCREFERENCENUMBER", MappedTo: Blank()},
+    {FeederColumn: "AMOUNT",             MappedTo: Blank()},
+    {FeederColumn: "DESCRIPTION",        MappedTo: Blank()},
+    {FeederColumn: "SIGN (+/-)",         MappedTo: Blank()},
+    {FeederColumn: "BANKCODE",           MappedTo: Blank()},
+    {FeederColumn: "FUND",               MappedTo: Blank()},
+    {FeederColumn: "ORG",                MappedTo: Blank()},
+    {FeederColumn: "ACCOUNT",            MappedTo: Blank()},
+    {FeederColumn: "PROGRAM",            MappedTo: Blank()}
+);
+Set(varAmountDivideBy100, false);
+Set(varRuleCodeStripPrefix, false);
+Set(varAttemptedGenerate, false);
+Navigate(Screen1_Upload, ScreenTransition.Fade)</code></pre>
+      </div>
+    </section>
+
+    <!-- PHASE 5 -->
+    <section class="phase" id="phase-5">
+      <div class="phase-head"><div class="phase-num">5</div><h2>Test End-to-End</h2></div>
+      <p class="phase-sub">Run through this checklist with a real sample file before sharing the app with anyone.</p>
+
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-body"><h4>Happy path</h4><p>Upload a file, map all 10 columns, leave both toggles off, generate, download, and open the result &mdash; confirm row count matches your source and values landed in the right columns.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-body"><h4>Unmapped column</h4><p>Leave one column unmapped and click Generate &mdash; confirm the row turns red and the button stays blocked with the warning message.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-body"><h4>Legacy toggles</h4><p>Turn on "Amount is in cents" with a cents-formatted source column and confirm the output divides by 100. Same for the rule-code prefix toggle.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-n">4</div>
+        <div class="step-body"><h4>COA reminder</h4><p>Confirm every generated row shows COA = 2, and that Screen 3's note about correcting it for other charts is visible.</p></div>
+      </div>
+      <div class="step">
+        <div class="step-n">5</div>
+        <div class="step-body"><h4>Share it</h4><p>Share the app with a colleague who doesn't have a premium license and confirm they can open and run it &mdash; this is what confirms the standard-connectors-only approach actually held.</p></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  try {
+    var checks = document.querySelectorAll('.navlist input[type="checkbox"]');
+    var saved = JSON.parse(localStorage.getItem('jvfeeder-guide-progress') || '{}');
+    function updateProgress(){
+      var total = checks.length, done = 0;
+      checks.forEach(function(c){
+        var li = c.closest('li');
+        if(c.checked){ done++; li.classList.add('done'); } else { li.classList.remove('done'); }
+      });
+      document.getElementById('progress-text').textContent = done + ' of ' + total + ' phases checked off';
+      document.getElementById('progress-fill').style.width = (total ? (done/total*100) : 0) + '%';
+    }
+    checks.forEach(function(c){
+      var p = c.getAttribute('data-phase');
+      c.checked = !!saved[p];
+      c.addEventListener('change', function(){
+        saved[p] = c.checked;
+        try { localStorage.setItem('jvfeeder-guide-progress', JSON.stringify(saved)); } catch(e){}
+        updateProgress();
+      });
+    });
+    updateProgress();
+  } catch(e){}
+
+  document.querySelectorAll('.cb-copy').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.getAttribute('data-copy');
+      var el = document.getElementById(id);
+      if(!el) return;
+      var text = el.textContent;
+      var done = function(){ var old = btn.textContent; btn.textContent = 'Copied'; setTimeout(function(){ btn.textContent = old; }, 1400); };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done).catch(function(){});
+      }
+    });
+  });
+})();
+</script>

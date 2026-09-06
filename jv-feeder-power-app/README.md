@@ -6,6 +6,11 @@ populated Banner JV Feeder, using the same field mapping and transforms as
 Power Platform license (same "standard connectors only" pattern as the
 Implant Requisition Bridge).
 
+## Screen mockups & build guide
+
+- **[Screen mockups](https://claude.ai/code/artifact/b2bed9d3-cc73-40e5-b790-0379881b9a99)** — the 3 Canvas App screens (Upload, Map Columns, Download). Source files are in `mockup/`.
+- **[Build guide](https://claude.ai/code/artifact/5e1828ff-7cf6-4a25-a1c1-01351781a799)** — phase-by-phase instructions (SharePoint setup, Office Scripts, Power Automate flows, Canvas App formulas). Also saved as `build-guide.html`.
+
 ## Required feeder columns (what the app asks users to map)
 
 These are the *target* columns from the template — the ones a user maps

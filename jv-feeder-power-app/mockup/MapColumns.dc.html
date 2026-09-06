@@ -1,0 +1,231 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1C2B45; --steel:#3E6B8A; --gold:#C98A2C; --sage:#4F7A63; --red:#B4443A;
+    --paper:#EEF1ED; --card:#FFFFFF; --line:#D7DCD5; --ink:#1C2B45; --inkmute:#5B6673;
+  }
+  *{box-sizing:border-box;}
+  body,html{margin:0;}
+  a{color:var(--steel);} a:hover{color:#2c5170;}
+</style>
+</helmet>
+
+<div style="width:1280px;height:960px;background:var(--paper);font-family:'IBM Plex Sans',sans-serif;color:var(--ink);display:flex;flex-direction:column;">
+
+  <!-- App bar -->
+  <div style="height:64px;flex-shrink:0;background:var(--navy);display:flex;align-items:center;justify-content:space-between;padding:0 32px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EEF1ED" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>
+      <div style="font-family:'Fraunces',serif;font-weight:600;font-size:18px;color:#fff;letter-spacing:-0.01em;">JV Feeder Generator</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--sage);color:#fff;display:flex;align-items:center;justify-content:center;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.75);">Upload</div>
+      </div>
+      <div style="width:28px;height:1px;background:rgba(255,255,255,0.28);"></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--gold);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;">2</div>
+        <div style="font-size:13px;color:#fff;font-weight:600;">Map Columns</div>
+      </div>
+      <div style="width:28px;height:1px;background:rgba(255,255,255,0.28);"></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.4);color:rgba(255,255,255,0.6);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;">3</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.6);">Download</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div style="flex:1;padding:28px 32px;display:flex;justify-content:center;">
+    <div style="width:1120px;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:30px 40px 26px;display:flex;flex-direction:column;">
+
+      <div style="font-family:'Fraunces',serif;font-weight:600;font-size:24px;color:var(--navy);margin-bottom:6px;letter-spacing:-0.01em;">Map your columns</div>
+      <div style="font-size:14px;color:var(--inkmute);line-height:1.5;margin-bottom:20px;">We found 12 columns in <span style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;">July_GL_Export.xlsx</span>. Match each required field on the left to a column from your file.</div>
+
+      <!-- Table header -->
+      <div style="display:flex;align-items:center;padding:0 2px 10px;border-bottom:1.5px solid var(--navy);">
+        <div style="width:230px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--inkmute);font-weight:600;">Feeder Column</div>
+        <div style="width:28px;"></div>
+        <div style="flex:1;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--inkmute);font-weight:600;">Maps To Your Column</div>
+      </div>
+
+      <!-- Row template (mapped) x9, then 1 unmapped -->
+      <!-- 1 -->
+      <div style="display:flex;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);">
+        <div style="width:230px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:3px 8px;color:var(--navy);">RULECODE</span></div>
+        <div style="width:28px;color:var(--inkmute);text-align:center;">&rarr;</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:5px;padding:8px 12px;background:#fff;">
+          <span style="font-size:13.5px;color:var(--ink);">Rule Code</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--inkmute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+      <!-- 2 -->
+      <div style="display:flex;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);">
+        <div style="width:230px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:3px 8px;color:var(--navy);">DOCREFERENCENUMBER</span></div>
+        <div style="width:28px;color:var(--inkmute);text-align:center;">&rarr;</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:5px;padding:8px 12px;background:#fff;">
+          <span style="font-size:13.5px;color:var(--ink);">Trans Date</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--inkmute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+      <!-- 3 -->
+      <div style="display:flex;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);">
+        <div style="width:230px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:3px 8px;color:var(--navy);">AMOUNT</span></div>
+        <div style="width:28px;color:var(--inkmute);text-align:center;">&rarr;</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:5px;padding:8px 12px;background:#fff;">
+          <span style="font-size:13.5px;color:var(--ink);">Amount</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--inkmute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+      <!-- 4 -->
+      <div style="display:flex;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);">
+        <div style="width:230px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:3px 8px;color:var(--navy);">DESCRIPTION</span></div>
+        <div style="width:28px;color:var(--inkmute);text-align:center;">&rarr;</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:5px;padding:8px 12px;background:#fff;">
+          <span style="font-size:13.5px;color:var(--ink);">Type</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--inkmute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+      <!-- 5 -->
+      <div style="display:flex;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);">
+        <div style="width:230px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:3px 8px;color:var(--navy);">SIGN (+/-)</span></div>
+        <div style="width:28px;color:var(--inkmute);text-align:center;">&rarr;</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:5px;padding:8px 12px;background:#fff;">
+          <span style="font-size:13.5px;color:var(--ink);">Db/Cr</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--inkmute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+      <!-- 6 -->
+      <div style="display:flex;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);">
+        <div style="width:230px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:3px 8px;color:var(--navy);">BANKCODE</span></div>
+        <div style="width:28px;color:var(--inkmute);text-align:center;">&rarr;</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:5px;padding:8px 12px;background:#fff;">
+          <span style="font-size:13.5px;color:var(--ink);">Bank</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--inkmute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+      <!-- 7 -->
+      <div style="display:flex;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);">
+        <div style="width:230px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:3px 8px;color:var(--navy);">FUND</span></div>
+        <div style="width:28px;color:var(--inkmute);text-align:center;">&rarr;</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:5px;padding:8px 12px;background:#fff;">
+          <span style="font-size:13.5px;color:var(--ink);">Fund</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--inkmute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+      <!-- 8 -->
+      <div style="display:flex;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);">
+        <div style="width:230px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:3px 8px;color:var(--navy);">ORG</span></div>
+        <div style="width:28px;color:var(--inkmute);text-align:center;">&rarr;</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:5px;padding:8px 12px;background:#fff;">
+          <span style="font-size:13.5px;color:var(--ink);">Org</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--inkmute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+      <!-- 9 -->
+      <div style="display:flex;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);">
+        <div style="width:230px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:3px 8px;color:var(--navy);">ACCOUNT</span></div>
+        <div style="width:28px;color:var(--inkmute);text-align:center;">&rarr;</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:5px;padding:8px 12px;background:#fff;">
+          <span style="font-size:13.5px;color:var(--ink);">Account</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sage)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--inkmute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+      </div>
+      <!-- 10: PROGRAM (unmapped) -->
+      <div style="display:flex;align-items:flex-start;padding:10px 2px 12px;border-bottom:1px solid var(--line);">
+        <div style="width:230px;padding-top:8px;"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:3px 8px;color:var(--navy);">PROGRAM</span></div>
+        <div style="width:28px;color:var(--inkmute);text-align:center;padding-top:8px;">&rarr;</div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;justify-content:space-between;border:1.5px solid var(--red);border-radius:5px;padding:8px 12px;background:#fff;">
+            <span style="font-size:13.5px;color:var(--inkmute);font-style:italic;">Select a column&hellip;</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--inkmute)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+          <div style="font-size:11.5px;color:var(--red);margin-top:5px;">Required &mdash; select a column</div>
+        </div>
+      </div>
+
+      <!-- Legacy options -->
+      <div style="margin-top:18px;border:1px solid var(--line);border-radius:5px;background:var(--paper);padding:16px 20px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--inkmute);font-weight:600;margin-bottom:12px;">Legacy Source Options</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;">
+          <div style="max-width:640px;">
+            <div style="font-size:13.5px;font-weight:600;color:var(--ink);">Amount is in cents</div>
+            <div style="font-size:12px;color:var(--inkmute);margin-top:2px;">Turn on only if your source system exports whole cents instead of dollars (e.g. legacy Epic extracts).</div>
+          </div>
+          <div style="width:40px;height:22px;border-radius:11px;background:#C7CDC5;flex-shrink:0;position:relative;">
+            <div style="width:18px;height:18px;border-radius:50%;background:#fff;border:1px solid var(--line);position:absolute;top:1px;left:1px;"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0 0;border-top:1px solid var(--line);margin-top:4px;padding-top:12px;">
+          <div style="max-width:640px;">
+            <div style="font-size:13.5px;font-weight:600;color:var(--ink);">Rule code has a chart-digit prefix</div>
+            <div style="font-size:12px;color:var(--inkmute);margin-top:2px;">Turn on only if rule codes include a leading chart digit that needs to be stripped.</div>
+          </div>
+          <div style="width:40px;height:22px;border-radius:11px;background:#C7CDC5;flex-shrink:0;position:relative;">
+            <div style="width:18px;height:18px;border-radius:50%;background:#fff;border:1px solid var(--line);position:absolute;top:1px;left:1px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom bar -->
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:13.5px;color:var(--steel);font-weight:600;">&larr; Back</div>
+        <div style="display:flex;align-items:center;gap:16px;">
+          <div style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--red);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            1 required column not yet mapped
+          </div>
+          <div style="background:#D7DCD5;color:#8A9088;font-size:14px;font-weight:600;padding:11px 26px;border-radius:5px;">Generate Feeder</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

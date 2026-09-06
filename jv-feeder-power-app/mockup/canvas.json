@@ -1,0 +1,8 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1280, "h": 800, "title": "1. Upload" },
+    { "file": "MapColumns.dc.html", "x": 1360, "y": 0, "w": 1280, "h": 960, "title": "2. Map Columns" },
+    { "file": "Download.dc.html", "x": 2720, "y": 0, "w": 1280, "h": 800, "title": "3. Download" }
+  ],
+  "launch": { "view": "canvas" }
+}
