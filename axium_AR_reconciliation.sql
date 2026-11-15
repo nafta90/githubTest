@@ -38,10 +38,9 @@
 --     allocated to (via ALLOCATE). Any portion not yet allocated shows
 --     under 'No Provider Group'.
 --
--- SIGN CHECK: if payment sections come back POSITIVE, ALLOCATE."Amount" is
---   stored with the opposite sign in your database. Fix: change
---   "- a."Amount""  to  "a."Amount""  in the second branch, and
---   "+ NVL(al."Allocated", 0)"  to  "- NVL(al."Allocated", 0)"  in the third.
+-- SIGNS (confirmed against the Aug 2026 printout): ALLOCATE."Amount" is
+--   stored POSITIVE for payments (types 3/4) but ALREADY NEGATIVE for
+--   adjustments (types 6/7), hence the CASE expressions in branches 2 and 3.
 --
 -- VALIDATION: pin the dates to August 2026 (replace every
 --   TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM') with DATE '2026-08-01' and every
@@ -79,7 +78,8 @@ FROM (
         CASE pay."Type" WHEN 3 THEN 3 WHEN 6 THEN 4
                         WHEN 4 THEN 5 ELSE 6 END,
         NVL(TRIM(p."PGroup"), 'No Provider Group'),
-        - a."Amount"
+        CASE WHEN pay."Type" IN (3, 4) THEN - a."Amount"
+             ELSE a."Amount" END
     FROM axium.trx pay
     JOIN axium.allocate a
       ON  a."PayType"      = pay."Type"
@@ -104,7 +104,8 @@ FROM (
         CASE pay."Type" WHEN 3 THEN 3 WHEN 6 THEN 4
                         WHEN 4 THEN 5 ELSE 6 END,
         'No Provider Group',
-        pay."Total" + NVL(al."Allocated", 0)
+        pay."Total" + CASE WHEN pay."Type" IN (3, 4) THEN NVL(al."Allocated", 0)
+                           ELSE - NVL(al."Allocated", 0) END
     FROM axium.trx pay
     LEFT JOIN (
         SELECT "PayType", "PayId", "PayTreatment",
@@ -220,3 +221,34 @@ WHERE t."Type" IN (3, 4, 6, 7)
   AND t."Date" <  TRUNC(SYSDATE, 'MM')
   AND ABS(t."Total" + NVL(a."Allocated", 0)) > 0.005
 ORDER BY "Section", t."Date", t."Id"
+
+
+-- ============================================================================
+-- QUERY 5: ONE-TIME VALIDATION DIAGNOSTIC for August 2026
+-- The PDF was printed Sep 1, 2026; the live database has kept changing
+-- August-dated rows since (late entries backdated into August, and
+-- deletions/corrections made after Sep 1). This query shows, per
+-- transaction type and treatment status:
+--   "Current Total"   = what the live data says today
+--   "AsAt Sep1 Total"  = only rows created before Sep 1 and not deleted
+--                        before Sep 1 (reconstruction of the print-time view)
+-- Compare "AsAt Sep1 Total" per type to the PDF section totals:
+--   Type 1 -> 3,606,892.47   Type 3 -> -655,400.89   Type 6 -> -200,152.32
+--   Type 4 -> -2,029,388.79  Type 7 -> -1,810,128.16
+-- ============================================================================
+SELECT
+    t."Type",
+    TRIM(t."Status")  AS "Status",
+    COUNT(*)          AS "Rows",
+    SUM(CASE WHEN NVL(t."Deleted", 0) = 0
+             THEN t."Total" END) AS "Current Total",
+    SUM(CASE WHEN t."CreationDate" < DATE '2026-09-01'
+              AND (NVL(t."Deleted", 0) = 0
+                   OR t."DeletionDate" >= DATE '2026-09-01')
+             THEN t."Total" END) AS "AsAt Sep1 Total"
+FROM axium.trx t
+WHERE t."Type" IN (1, 2, 3, 4, 6, 7)
+  AND t."Date" >= DATE '2026-08-01'
+  AND t."Date" <  DATE '2026-09-01'
+GROUP BY t."Type", TRIM(t."Status")
+ORDER BY t."Type", TRIM(t."Status")
