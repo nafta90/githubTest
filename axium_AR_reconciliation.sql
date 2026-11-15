@@ -329,3 +329,83 @@ WHERE t."Type" IN (1, 2, 3, 4, 6, 7)
   AND t."Date" <  DATE '2026-09-01'
 GROUP BY t."Type"
 ORDER BY t."Type"
+
+
+-- ============================================================================
+-- ======================  FINDINGS FROM THE .RPT FILE  =======================
+-- The Crystal report was decrypted and parsed. The "All No Criteria" report
+-- DOES NOT query TRX at all. When the report is run inside axiUm, the client
+-- first computes the whole reconciliation (from axiUm's transaction HISTORY,
+-- including modifications/deletions/transfers) and saves it as a numbered
+-- BATCH into two tables:
+--     AR_RECON_SAVED_DATA_HDR  (one row per run: Batch, FromDate, ToDate,
+--                               BeginningBalance, EndingBalance, GroupBy1/2,
+--                               IsDetailed, IncludeUnallocated)
+--     AR_RECON_SAVED_DATA_DTL  (the lines: Batch, Type, History,
+--                               ReportHistoryTypeDescription, ReportPGroup,
+--                               ReportProducer, ReportTotalChange, ...)
+-- Crystal merely formats one batch ({HDR.Batch} = {?Batch}). The printed
+-- "A/R as at" lines are HDR.BeginningBalance / HDR.EndingBalance, and the
+-- report itself checks: Beginning + Treatments - PtPmts + PtAdj - InsPmts
+-- - InsAdj = Ending. This is why no live TRX query can match an old printout
+-- penny-for-penny: the batch is a frozen snapshot, built from history tables
+-- (TRXHIST) that the fin_powerbi_readonly account has not been granted.
+--
+-- TO RECREATE EXACTLY: ask the axiUm DBA to grant SELECT on
+-- AR_RECON_SAVED_DATA_HDR and AR_RECON_SAVED_DATA_DTL to fin_powerbi_readonly,
+-- keep running the report monthly inside axiUm (that is what creates the
+-- batch), then use Queries 9-11 below to pull the identical numbers into
+-- Excel. Queries 1-4 above remain the best TRX-only approximation if the
+-- grant is not possible.
+-- ============================================================================
+
+
+-- ============================================================================
+-- QUERY 9: List saved reconciliation batches (newest first)
+-- Pick the Batch for the month you want; FromDate/ToDate identify the period.
+-- ============================================================================
+SELECT
+    h."Batch",
+    h."FromDate",
+    h."ToDate",
+    h."BeginningBalance",
+    h."EndingBalance",
+    h."GroupBy1",
+    h."GroupBy2",
+    h."IsDetailed",
+    h."IncludeUnallocated"
+FROM axium.ar_recon_saved_data_hdr h
+ORDER BY h."Batch" DESC
+
+
+-- ============================================================================
+-- QUERY 10: Section totals by Provider Group for one batch (THE REPORT BODY)
+-- Replace 12345 with the Batch number from Query 9.
+-- Signs follow the stored convention; the printed report shows payments
+-- negated, matching what you see here or its mirror - compare once and keep.
+-- ============================================================================
+SELECT
+    d."Type",
+    NVL(TRIM(d."ReportPGroup"), 'No Provider Group') AS "Provider Group",
+    SUM(d."ReportTotalChange")                       AS "Amount"
+FROM axium.ar_recon_saved_data_dtl d
+WHERE d."Batch" = 12345
+  AND d."ReportHistoryTypeDescription" NOT IN
+      ('Unallocated Adjustments', 'Unallocated Insurance Payments', 'Unallocated Payments')
+GROUP BY d."Type", NVL(TRIM(d."ReportPGroup"), 'No Provider Group')
+ORDER BY d."Type", "Provider Group"
+
+
+-- ============================================================================
+-- QUERY 11: Unallocated Receivables lines for one batch
+-- Replace 12345 with the Batch number from Query 9.
+-- ============================================================================
+SELECT
+    d."ReportHistoryTypeDescription" AS "Section",
+    SUM(d."ReportTotalChange")       AS "Amount"
+FROM axium.ar_recon_saved_data_dtl d
+WHERE d."Batch" = 12345
+  AND d."ReportHistoryTypeDescription" IN
+      ('Unallocated Adjustments', 'Unallocated Insurance Payments', 'Unallocated Payments')
+GROUP BY d."ReportHistoryTypeDescription"
+ORDER BY 1
