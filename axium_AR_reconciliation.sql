@@ -29,43 +29,99 @@
 -- QUERY 1: Report body - section totals by Provider Group
 -- (Treatments / Patient Payments / Patient Adjustments /
 --  Insurance Payments / Insurance Adjustments)
+--
+-- HOW GROUPING WORKS (matches the real report):
+--   * Treatments/office charges are grouped by the provider group of the
+--     transaction's own producer.
+--   * Payments and adjustments carry NO producer of their own. The report
+--     attributes them to the provider group of the CHARGE each payment was
+--     allocated to (via ALLOCATE). Any portion not yet allocated shows
+--     under 'No Provider Group'.
+--
+-- SIGN CHECK: if payment sections come back POSITIVE, ALLOCATE."Amount" is
+--   stored with the opposite sign in your database. Fix: change
+--   "- a."Amount""  to  "a."Amount""  in the second branch, and
+--   "+ NVL(al."Allocated", 0)"  to  "- NVL(al."Allocated", 0)"  in the third.
+--
+-- VALIDATION: pin the dates to August 2026 (replace every
+--   TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM') with DATE '2026-08-01' and every
+--   TRUNC(SYSDATE, 'MM') with DATE '2026-09-01') and compare to the PDF:
+--   Treatments 3,606,892.47 / Pt Pmts -655,400.89 / Pt Adj -200,152.32 /
+--   Ins Pmts -2,029,388.79 / Ins Adj -1,810,128.16.
+--   Note: allocations reflect TODAY's state, so months closed long ago can
+--   drift slightly between groups (section totals stay exact).
 -- ============================================================================
 SELECT
-    CASE t."Type"
-        WHEN 1 THEN 'Treatments'
-        WHEN 2 THEN 'Office Charges'
-        WHEN 3 THEN 'Patient Payments'
-        WHEN 6 THEN 'Patient Adjustments'
-        WHEN 4 THEN 'Insurance Payments'
-        WHEN 7 THEN 'Insurance Adjustments'
-    END                                        AS "Section",
-    CASE t."Type"
-        WHEN 1 THEN 1 WHEN 2 THEN 2 WHEN 3 THEN 3
-        WHEN 6 THEN 4 WHEN 4 THEN 5 WHEN 7 THEN 6
-    END                                        AS "SectionOrder",
-    NVL(TRIM(p."PGroup"), 'No Provider Group') AS "Provider Group",
-    SUM(t."Total")                             AS "Amount"
-FROM axium.trx t
-LEFT JOIN axium.producer p
-       ON p."Producer" = t."Producer"
-WHERE t."Type" IN (1, 2, 3, 4, 6, 7)
-  AND NVL(t."Deleted", 0) = 0
-  AND t."Date" >= TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
-  AND t."Date" <  TRUNC(SYSDATE, 'MM')
-GROUP BY
-    CASE t."Type"
-        WHEN 1 THEN 'Treatments'
-        WHEN 2 THEN 'Office Charges'
-        WHEN 3 THEN 'Patient Payments'
-        WHEN 6 THEN 'Patient Adjustments'
-        WHEN 4 THEN 'Insurance Payments'
-        WHEN 7 THEN 'Insurance Adjustments'
-    END,
-    CASE t."Type"
-        WHEN 1 THEN 1 WHEN 2 THEN 2 WHEN 3 THEN 3
-        WHEN 6 THEN 4 WHEN 4 THEN 5 WHEN 7 THEN 6
-    END,
-    NVL(TRIM(p."PGroup"), 'No Provider Group')
+    "Section",
+    "SectionOrder",
+    "Provider Group",
+    SUM("Amt") AS "Amount"
+FROM (
+    SELECT
+        CASE t."Type" WHEN 1 THEN 'Treatments'
+                      ELSE 'Office Charges' END     AS "Section",
+        CASE t."Type" WHEN 1 THEN 1 ELSE 2 END      AS "SectionOrder",
+        NVL(TRIM(p."PGroup"), 'No Provider Group')  AS "Provider Group",
+        t."Total"                                   AS "Amt"
+    FROM axium.trx t
+    LEFT JOIN axium.producer p
+           ON p."Producer" = t."Producer"
+    WHERE t."Type" IN (1, 2)
+      AND NVL(t."Deleted", 0) = 0
+      AND t."Date" >= TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
+      AND t."Date" <  TRUNC(SYSDATE, 'MM')
+    UNION ALL
+    SELECT
+        CASE pay."Type" WHEN 3 THEN 'Patient Payments'
+                        WHEN 6 THEN 'Patient Adjustments'
+                        WHEN 4 THEN 'Insurance Payments'
+                        ELSE 'Insurance Adjustments' END,
+        CASE pay."Type" WHEN 3 THEN 3 WHEN 6 THEN 4
+                        WHEN 4 THEN 5 ELSE 6 END,
+        NVL(TRIM(p."PGroup"), 'No Provider Group'),
+        - a."Amount"
+    FROM axium.trx pay
+    JOIN axium.allocate a
+      ON  a."PayType"      = pay."Type"
+      AND a."PayId"        = pay."Id"
+      AND a."PayTreatment" = pay."Treatment"
+    LEFT JOIN axium.trx chg
+      ON  chg."Type"      = a."TrxType"
+      AND chg."Id"        = a."TrxId"
+      AND chg."Treatment" = a."TrxTreatment"
+    LEFT JOIN axium.producer p
+           ON p."Producer" = chg."Producer"
+    WHERE pay."Type" IN (3, 4, 6, 7)
+      AND NVL(pay."Deleted", 0) = 0
+      AND pay."Date" >= TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
+      AND pay."Date" <  TRUNC(SYSDATE, 'MM')
+    UNION ALL
+    SELECT
+        CASE pay."Type" WHEN 3 THEN 'Patient Payments'
+                        WHEN 6 THEN 'Patient Adjustments'
+                        WHEN 4 THEN 'Insurance Payments'
+                        ELSE 'Insurance Adjustments' END,
+        CASE pay."Type" WHEN 3 THEN 3 WHEN 6 THEN 4
+                        WHEN 4 THEN 5 ELSE 6 END,
+        'No Provider Group',
+        pay."Total" + NVL(al."Allocated", 0)
+    FROM axium.trx pay
+    LEFT JOIN (
+        SELECT "PayType", "PayId", "PayTreatment",
+               SUM("Amount") AS "Allocated"
+        FROM axium.allocate
+        GROUP BY "PayType", "PayId", "PayTreatment"
+    ) al
+      ON  al."PayType"      = pay."Type"
+      AND al."PayId"        = pay."Id"
+      AND al."PayTreatment" = pay."Treatment"
+    WHERE pay."Type" IN (3, 4, 6, 7)
+      AND NVL(pay."Deleted", 0) = 0
+      AND pay."Date" >= TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
+      AND pay."Date" <  TRUNC(SYSDATE, 'MM')
+) x
+GROUP BY "Section", "SectionOrder", "Provider Group"
+HAVING ABS(SUM("Amt")) > 0.005
 ORDER BY "SectionOrder", "Provider Group"
 
 
