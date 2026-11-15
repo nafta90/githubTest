@@ -20,14 +20,17 @@
 
 ### Parameters
 
-| Bind | Type | Behavior |
-|---|---|---|
-| `:p_start_dt` | DATE | Invoices on/after this date (`INV_VCHR_DT`). `NULL` = no lower bound. |
-| `:p_end_dt` | DATE | Invoices on/before this date (inclusive of the full day). `NULL` = no upper bound. |
-| `:p_coll_cd` | VARCHAR2 | College code from the Org hierarchy (`COLL_LEVEL_3_CD`). **Defaults to `FN` (Dentistry) when `NULL`.** |
-| `:p_vend_id` | VARCHAR2 | Optional single vendor (`T_VEND.VEND_ID`). `NULL` = all vendors. |
+- **Where:** edit the `params` CTE at the very top of the SQL file — there are **no bind variables**, so the query runs unchanged through **ODBC / Power Query / Excel / Power BI** (bind variables cause `ORA-01008: not all variables bound` in those tools).
 
-- **All parameters NULL** → entire history for college `FN`, every vendor.
+| Field in `params` | Type | Behavior |
+|---|---|---|
+| `start_dt` | DATE | Invoices on/after this date (`INV_VCHR_DT`). `NULL` = no lower bound. Example: `DATE '2024-07-01'`. |
+| `end_dt` | DATE | Invoices on/before this date (inclusive of the full day). `NULL` = no upper bound. |
+| `coll_cd` | VARCHAR2 | College code from the Org hierarchy (`COLL_LEVEL_3_CD`). **Default `'FN'` (Dentistry).** |
+| `vend_id` | VARCHAR2 | Optional single vendor (`T_VEND.VEND_ID`). `NULL` = all vendors. |
+
+- **All date/vendor fields NULL** → entire history for college `FN`, every vendor.
+- In Power Query you can also wire these to workbook/report parameters by splicing the values into the query text (e.g. `"... CAST(" & StartDateText & " AS DATE) AS start_dt ..."`).
 - Fiscal **`FY_CD` / `FISC_PERD_CD`** are included as output columns, so a reporting tool can also slice by fiscal period without changing the SQL.
 
 ---

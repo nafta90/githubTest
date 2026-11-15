@@ -7,17 +7,20 @@
                  (T_INV_VCHR_ACCTG_DETL). Payments are PRE-AGGREGATED to this
                  same grain, so rows never multiply from the payment join.
 
-   Parameters (all optional -> report is time-period agnostic by default):
-     :p_start_dt  DATE      - include invoices with INV_VCHR_DT >= this date.
-                              NULL = no lower bound.
-     :p_end_dt    DATE      - include invoices with INV_VCHR_DT <= this date
-                              (implemented as < :p_end_dt + 1 so a plain date
-                              captures the whole day). NULL = no upper bound.
-     :p_coll_cd   VARCHAR2  - college code filter on the Org hierarchy
-                              (COLL_LEVEL_3_CD). Defaults to 'FN' (Dentistry)
-                              when NULL.
-     :p_vend_id   VARCHAR2  - optional single-vendor filter (T_VEND.VEND_ID).
-                              NULL = all vendors.
+   Parameters: edit the PARAMS block at the top of the query (no bind
+   variables -- works through ODBC / Power Query / Excel, which cannot bind
+   Oracle :variables and raise ORA-01008 if any are present).
+     start_dt  DATE      - include invoices with INV_VCHR_DT >= this date.
+                           NULL = no lower bound.
+                           Example: DATE '2024-07-01'
+     end_dt    DATE      - include invoices with INV_VCHR_DT <= this date
+                           (implemented as < end_dt + 1 so a plain date
+                           captures the whole day). NULL = no upper bound.
+                           Example: DATE '2025-06-30'
+     coll_cd   VARCHAR2  - college code filter on the Org hierarchy
+                           (COLL_LEVEL_3_CD). Default 'FN' (Dentistry).
+     vend_id   VARCHAR2  - optional single-vendor filter (T_VEND.VEND_ID).
+                           NULL = all vendors.
 
    Notes / caveats:
      - Amount columns live at three levels: invoice line item, FOAP
@@ -33,7 +36,18 @@
        T_POST_DOC.POST_DOC_NBR keyed by the surrogate EDW_FIN_DOC_ID.
    ========================================================================== */
 
-WITH pay AS (
+WITH params AS (
+    /* ---- EDIT FILTERS HERE ------------------------------------------------
+       Leave start_dt/end_dt as NULL for all history (time-period agnostic),
+       or set them like:  CAST(DATE '2024-07-01' AS DATE)                   */
+    SELECT
+        CAST(NULL AS DATE)          AS start_dt,   -- e.g. DATE '2024-07-01'
+        CAST(NULL AS DATE)          AS end_dt,     -- e.g. DATE '2025-06-30'
+        'FN'                        AS coll_cd,    -- college code (Dentistry)
+        CAST(NULL AS VARCHAR2(30))  AS vend_id     -- e.g. '123456789'
+    FROM dual
+),
+pay AS (
     /* Payments rolled up to the invoice FOAP-distribution grain.
        One invoice distribution can be paid by multiple checks; aggregate so
        the main query stays 1:1. Check doc number comes from T_POST_DOC. */
@@ -217,15 +231,16 @@ LEFT JOIN pay
       ON  pay.INV_VCHR_EDW_FIN_DOC_ID = ad.EDW_FIN_DOC_ID
       AND pay.INV_VCHR_LINE_ITEM_NBR  = ad.INV_VCHR_LINE_ITEM_NBR
       AND pay.INV_VCHR_SEQ_NBR        = ad.INV_VCHR_SEQ_NBR
+CROSS JOIN params prm
 
 WHERE 1 = 1
-  /* College filter - defaults to FN (Dentistry) when :p_coll_cd is NULL */
-  AND org.COLL_LEVEL_3_CD = NVL(:p_coll_cd, 'FN')
-  /* Time-period filter - leave both binds NULL for all history */
-  AND ( :p_start_dt IS NULL OR iv.INV_VCHR_DT >= :p_start_dt )
-  AND ( :p_end_dt   IS NULL OR iv.INV_VCHR_DT <  :p_end_dt + 1 )
+  /* College filter - set in the PARAMS block (default FN = Dentistry) */
+  AND org.COLL_LEVEL_3_CD = NVL(prm.coll_cd, 'FN')
+  /* Time-period filter - leave both NULL in PARAMS for all history */
+  AND ( prm.start_dt IS NULL OR iv.INV_VCHR_DT >= prm.start_dt )
+  AND ( prm.end_dt   IS NULL OR iv.INV_VCHR_DT <  prm.end_dt + 1 )
   /* Optional single-vendor filter */
-  AND ( :p_vend_id  IS NULL OR v.VEND_ID = :p_vend_id )
+  AND ( prm.vend_id  IS NULL OR v.VEND_ID = prm.vend_id )
 
 ORDER BY
     VEND_NAME,
