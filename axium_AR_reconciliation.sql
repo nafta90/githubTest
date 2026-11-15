@@ -299,3 +299,33 @@ SELECT
 FROM axium.trx t
 WHERE t."Type" IN (1, 2, 3, 4, 6, 7)
   AND NVL(t."Deleted", 0) = 0
+
+
+-- ============================================================================
+-- QUERY 8: DIAGNOSTIC - suspended / deleted / strikeout breakdown (Aug 2026)
+-- Tests two remaining explanations for the per-section gaps vs the PDF:
+--   * "Suspended Total": transactions pending approval. If the report
+--     excludes them, these amounts explain why we OVER-count:
+--     expect roughly Type 1 -> +101,715 / Type 3 -> -28,350 / Type 7 -> -24,272
+--   * "Deleted"/"Strikeout" Totals: rows removed since the Sep 1 printout.
+--     These explain why we UNDER-count:
+--     expect roughly Type 4 -> -272,049 / Type 6 -> -38,642 among them
+-- ============================================================================
+SELECT
+    t."Type",
+    SUM(CASE WHEN NVL(t."Deleted", 0) = 0
+              AND NVL(t."Suspended", 0) = 1
+             THEN t."Total" END) AS "Suspended Total",
+    SUM(CASE WHEN NVL(t."Deleted", 0) = 1
+             THEN t."Total" END) AS "Deleted Total",
+    SUM(CASE WHEN NVL(t."Deleted", 0) = 2
+             THEN t."Total" END) AS "Strikeout Total",
+    COUNT(CASE WHEN NVL(t."Deleted", 0) = 1
+                AND t."DeletionDate" IS NULL
+               THEN 1 END)       AS "Deleted no date"
+FROM axium.trx t
+WHERE t."Type" IN (1, 2, 3, 4, 6, 7)
+  AND t."Date" >= DATE '2026-08-01'
+  AND t."Date" <  DATE '2026-09-01'
+GROUP BY t."Type"
+ORDER BY t."Type"
