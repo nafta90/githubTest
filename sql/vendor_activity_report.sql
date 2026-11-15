@@ -11,8 +11,10 @@
    variables -- works through ODBC / Power Query / Excel, which cannot bind
    Oracle :variables and raise ORA-01008 if any are present).
      start_dt  DATE      - include invoices with INV_VCHR_DT >= this date.
-                           NULL = no lower bound.
-                           Example: DATE '2024-07-01'
+                           DEFAULT: rolling past 2 years
+                           (ADD_MONTHS(TRUNC(SYSDATE), -24)).
+                           Set to NULL for no lower bound (all history --
+                           expect a much slower run).
      end_dt    DATE      - include invoices with INV_VCHR_DT <= this date
                            (implemented as < end_dt + 1 so a plain date
                            captures the whole day). NULL = no upper bound.
@@ -38,10 +40,10 @@
 
 WITH params AS (
     /* ---- EDIT FILTERS HERE ------------------------------------------------
-       Leave start_dt/end_dt as NULL for all history (time-period agnostic),
-       or set them like:  CAST(DATE '2024-07-01' AS DATE)                   */
+       Default date window = rolling past 2 years. Use fixed dates like
+       CAST(DATE '2024-07-01' AS DATE), or NULL for no bound (all history). */
     SELECT
-        CAST(NULL AS DATE)          AS start_dt,   -- e.g. DATE '2024-07-01'
+        ADD_MONTHS(TRUNC(SYSDATE), -24) AS start_dt,  -- past 2 years
         CAST(NULL AS DATE)          AS end_dt,     -- e.g. DATE '2025-06-30'
         'FN'                        AS coll_cd,    -- college code (Dentistry)
         CAST(NULL AS VARCHAR2(30))  AS vend_id     -- e.g. '123456789'
@@ -50,7 +52,9 @@ WITH params AS (
 pay AS (
     /* Payments rolled up to the invoice FOAP-distribution grain.
        One invoice distribution can be paid by multiple checks; aggregate so
-       the main query stays 1:1. Check doc number comes from T_POST_DOC. */
+       the main query stays 1:1. Check doc number comes from T_POST_DOC.
+       Pre-filtered to invoices inside the report's date window so the
+       aggregation never scans the whole check-detail table. */
     SELECT
         bcd.INV_VCHR_EDW_FIN_DOC_ID,
         bcd.INV_VCHR_LINE_ITEM_NBR,
@@ -74,11 +78,16 @@ pay AS (
         MAX(CASE WHEN bc.BANK_CHK_CNCL_IND = 'Y' THEN 'Y' ELSE 'N' END)
                                                         AS PAID_ANY_CHK_CNCL_IND
     FROM  T_BANK_CHK_INV_VCHR_DETL bcd
+    JOIN  T_INV_VCHR pinv
+          ON  pinv.EDW_FIN_DOC_ID = bcd.INV_VCHR_EDW_FIN_DOC_ID
+    CROSS JOIN params prm
     JOIN  T_BANK_CHK bc
           ON  bc.EDW_FIN_DOC_ID  = bcd.BANK_CHECK_EDW_FIN_DOC_ID
           AND bc.BANK_CHK_BANK_CD = bcd.BANK_CHK_BANK_CD
     LEFT JOIN T_POST_DOC chkdoc
           ON  chkdoc.EDW_FIN_DOC_ID = bcd.BANK_CHECK_EDW_FIN_DOC_ID
+    WHERE ( prm.start_dt IS NULL OR pinv.INV_VCHR_DT >= prm.start_dt )
+      AND ( prm.end_dt   IS NULL OR pinv.INV_VCHR_DT <  prm.end_dt + 1 )
     GROUP BY
         bcd.INV_VCHR_EDW_FIN_DOC_ID,
         bcd.INV_VCHR_LINE_ITEM_NBR,
@@ -242,9 +251,6 @@ WHERE 1 = 1
   /* Optional single-vendor filter */
   AND ( prm.vend_id  IS NULL OR v.VEND_ID = prm.vend_id )
 
-ORDER BY
-    VEND_NAME,
-    iv.INV_VCHR_DT,
-    invdoc.POST_DOC_NBR,
-    li.INV_VCHR_LINE_ITEM_NBR,
-    ad.INV_VCHR_SEQ_NBR
+/* No ORDER BY on purpose: sorting a large result server-side is expensive
+   and Excel/Power BI re-sort locally anyway. Add one back if you need a
+   deterministic order from SQL*Plus or a flat-file export. */

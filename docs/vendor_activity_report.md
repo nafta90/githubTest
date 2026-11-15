@@ -5,7 +5,9 @@
 - **Report:** vendor activity for the College of Dentistry (college code `FN` by default), time-period agnostic with an optional date-range filter.
 - **Covers:** invoices with line-item detail, payments (checks/ACH), purchase order information, FOAP codes (Fund, Org, Account, Program + Activity/Location) with titles, PO requestor/buyer info, and vendor master attributes.
 - **Source:** Finance EDW (Banner Decision Support physical model, `FIN_EDW_Physical_Model_Report`).
-- **Query file:** [`sql/vendor_activity_report.sql`](../sql/vendor_activity_report.sql) (Oracle).
+- **Query files (Oracle):**
+  - [`sql/vendor_activity_report.sql`](../sql/vendor_activity_report.sql) — full detail (this document).
+  - [`sql/vendor_activity_summary.sql`](../sql/vendor_activity_summary.sql) — **one row per vendor** (invoice/PO/check counts, first/last activity, invoiced vs. paid vs. unpaid totals). Use it for everyday browsing, then run the detail query with `vend_id` set to drill into one vendor.
 
 ---
 
@@ -24,12 +26,12 @@
 
 | Field in `params` | Type | Behavior |
 |---|---|---|
-| `start_dt` | DATE | Invoices on/after this date (`INV_VCHR_DT`). `NULL` = no lower bound. Example: `DATE '2024-07-01'`. |
+| `start_dt` | DATE | Invoices on/after this date (`INV_VCHR_DT`). **Default: rolling past 2 years** (`ADD_MONTHS(TRUNC(SYSDATE), -24)`). Set to `NULL` for all history (slow). |
 | `end_dt` | DATE | Invoices on/before this date (inclusive of the full day). `NULL` = no upper bound. |
 | `coll_cd` | VARCHAR2 | College code from the Org hierarchy (`COLL_LEVEL_3_CD`). **Default `'FN'` (Dentistry).** |
-| `vend_id` | VARCHAR2 | Optional single vendor (`T_VEND.VEND_ID`). `NULL` = all vendors. |
+| `vend_id` | VARCHAR2 | Optional single vendor (`T_VEND.VEND_ID`). `NULL` = all vendors. Detail query only. |
 
-- **All date/vendor fields NULL** → entire history for college `FN`, every vendor.
+- **Performance choices baked in:** the payment CTE only aggregates checks for invoices inside the date window, and there is no final `ORDER BY` (Excel/Power BI sort locally; add one back for flat-file exports).
 - In Power Query you can also wire these to workbook/report parameters by splicing the values into the query text (e.g. `"... CAST(" & StartDateText & " AS DATE) AS start_dt ..."`).
 - Fiscal **`FY_CD` / `FISC_PERD_CD`** are included as output columns, so a reporting tool can also slice by fiscal period without changing the SQL.
 
