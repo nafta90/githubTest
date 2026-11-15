@@ -92,6 +92,31 @@ pay AS (
         bcd.INV_VCHR_EDW_FIN_DOC_ID,
         bcd.INV_VCHR_LINE_ITEM_NBR,
         bcd.INV_VCHR_SEQ_NBR
+),
+doc_txt AS (
+    /* Free-form document text (item text) typed or interfaced onto the
+       invoice. POST_DOC_LINE_ITEM_NBR ties text to a specific line; NULL
+       means header-level text. Standard boilerplate clauses
+       (POST_DOC_CLAUSE_NBR set) are excluded so only real descriptions
+       remain. Pre-filtered to invoices in the report's date window.
+       NOTE: ON OVERFLOW TRUNCATE needs Oracle 12.2+; on older versions
+       remove that clause (very long text would then raise ORA-01489). */
+    SELECT
+        pdt.EDW_FIN_DOC_ID,
+        pdt.POST_DOC_LINE_ITEM_NBR,
+        LISTAGG(pdt.POST_DOC_TXT, ' ' ON OVERFLOW TRUNCATE)
+            WITHIN GROUP (ORDER BY pdt.POST_DOC_TYPE_SEQ_NBR,
+                                   pdt.POST_DOC_LINE_NBR)    AS DOC_TXT
+    FROM  T_POST_DOC_TXT pdt
+    JOIN  T_INV_VCHR tinv
+          ON  tinv.EDW_FIN_DOC_ID = pdt.EDW_FIN_DOC_ID
+    CROSS JOIN params prm
+    WHERE pdt.POST_DOC_CLAUSE_NBR IS NULL
+      AND ( prm.start_dt IS NULL OR tinv.INV_VCHR_DT >= prm.start_dt )
+      AND ( prm.end_dt   IS NULL OR tinv.INV_VCHR_DT <  prm.end_dt + 1 )
+    GROUP BY
+        pdt.EDW_FIN_DOC_ID,
+        pdt.POST_DOC_LINE_ITEM_NBR
 )
 SELECT
     /* ----------------------------- VENDOR ------------------------------- */
@@ -137,6 +162,8 @@ SELECT
     li.INV_VCHR_LINE_ITEM_ADDL_AMT                      AS LINE_ITEM_ADDL_AMT,
     li.INV_VCHR_LINE_ITEM_NET_AMT                       AS LINE_ITEM_NET_AMT,
     li.INV_VCHR_LINE_ITEM_RCV_STATUS                    AS LINE_ITEM_RCV_STATUS,
+    litxt.DOC_TXT                                       AS LINE_ITEM_DOC_TEXT,
+    hdrtxt.DOC_TXT                                      AS INV_HDR_DOC_TEXT,
 
     /* ------------------- FOAP ACCOUNTING DISTRIBUTION ------------------- */
     ad.INV_VCHR_SEQ_NBR                                 AS ACCTG_SEQ_NBR,
@@ -219,6 +246,14 @@ LEFT JOIN T_POST_DOC podoc
 LEFT JOIN T_PO_LINE_ITEM pli
       ON  pli.EDW_FIN_DOC_ID   = li.PO_EDW_FIN_DOC_ID
       AND pli.PO_LINE_ITEM_NBR = li.PO_LINE_ITEM_NBR
+/* Item text on this invoice line */
+LEFT JOIN doc_txt litxt
+      ON  litxt.EDW_FIN_DOC_ID         = li.EDW_FIN_DOC_ID
+      AND litxt.POST_DOC_LINE_ITEM_NBR = li.INV_VCHR_LINE_ITEM_NBR
+/* Header-level text on the invoice (common on one-line standing orders) */
+LEFT JOIN doc_txt hdrtxt
+      ON  hdrtxt.EDW_FIN_DOC_ID = iv.EDW_FIN_DOC_ID
+      AND hdrtxt.POST_DOC_LINE_ITEM_NBR IS NULL
 /* Org hierarchy: current-info row carries the college rollup (level 3). */
 JOIN  T_ORG_CD_HIST org
       ON  org.COA_CD = ad.COA_CD
