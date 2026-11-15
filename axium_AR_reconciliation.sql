@@ -252,3 +252,50 @@ WHERE t."Type" IN (1, 2, 3, 4, 6, 7)
   AND t."Date" <  DATE '2026-09-01'
 GROUP BY t."Type", TRIM(t."Status")
 ORDER BY t."Type", TRIM(t."Status")
+
+
+-- ============================================================================
+-- QUERY 6: DIAGNOSTIC - section totals by TX DATE vs ENTRY DATE (Aug 2026)
+-- Type 6 proved the report cannot be selecting by transaction date
+-- (current = as-at-Sep-1, yet both differ from the PDF). This tests the
+-- entry-date (CreationDate) hypothesis. Compare each type's "By Entry Date"
+-- to the PDF: 1 -> 3,606,892.47 / 3 -> -655,400.89 / 6 -> -200,152.32 /
+-- 4 -> -2,029,388.79 / 7 -> -1,810,128.16
+-- ============================================================================
+SELECT
+    t."Type",
+    TRIM(t."Status") AS "Status",
+    SUM(CASE WHEN t."Date" >= DATE '2026-08-01'
+              AND t."Date" <  DATE '2026-09-01'
+             THEN t."Total" END) AS "By Tx Date",
+    SUM(CASE WHEN t."CreationDate" >= DATE '2026-08-01'
+              AND t."CreationDate" <  DATE '2026-09-01'
+             THEN t."Total" END) AS "By Entry Date"
+FROM axium.trx t
+WHERE t."Type" IN (1, 2, 3, 4, 6, 7)
+  AND NVL(t."Deleted", 0) = 0
+  AND (   (t."Date" >= DATE '2026-08-01' AND t."Date" < DATE '2026-09-01')
+       OR (t."CreationDate" >= DATE '2026-08-01' AND t."CreationDate" < DATE '2026-09-01'))
+GROUP BY t."Type", TRIM(t."Status")
+ORDER BY t."Type", TRIM(t."Status")
+
+
+-- ============================================================================
+-- QUERY 7: DIAGNOSTIC - A/R balances by TX DATE vs ENTRY DATE
+-- The decisive test. PDF targets:
+--   A/R as at Aug 01: 20,816,258.52     A/R as at Aug 31: 19,728,080.83
+-- Whichever date basis reproduces BOTH balances is the one the report uses.
+-- (Scans the whole TRX table - expect it to take a minute or two.)
+-- ============================================================================
+SELECT
+    SUM(CASE WHEN t."Date" < DATE '2026-08-01'
+             THEN t."Total" END) AS "Open by TxDate",
+    SUM(CASE WHEN t."Date" < DATE '2026-09-01'
+             THEN t."Total" END) AS "Close by TxDate",
+    SUM(CASE WHEN t."CreationDate" < DATE '2026-08-01'
+             THEN t."Total" END) AS "Open by EntryDate",
+    SUM(CASE WHEN t."CreationDate" < DATE '2026-09-01'
+             THEN t."Total" END) AS "Close by EntryDate"
+FROM axium.trx t
+WHERE t."Type" IN (1, 2, 3, 4, 6, 7)
+  AND NVL(t."Deleted", 0) = 0
