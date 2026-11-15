@@ -8,6 +8,7 @@
 - **Query files (Oracle):**
   - [`sql/vendor_activity_report.sql`](../sql/vendor_activity_report.sql) — full detail (this document).
   - [`sql/vendor_activity_summary.sql`](../sql/vendor_activity_summary.sql) — **one row per vendor** (invoice/PO/check counts, first/last activity, invoiced vs. paid vs. unpaid totals). Use it for everyday browsing, then run the detail query with `vend_id` set to drill into one vendor.
+  - [`sql/vendor_invoice_exceptions.sql`](../sql/vendor_invoice_exceptions.sql) — **one row per problem invoice**: holds (header and line), past due, sitting unpaid beyond a threshold (default 30 days, `sitting_days` param), partially paid, cancelled-check-not-repaid, and receiving-incomplete-when-matching-required. Includes derived `INVOICE_STATUS` and `PAYMENT_STATUS` fields plus the raw EDW indicators, aging columns, and a named `ISSUE_LIST` per invoice. Note: documents *rejected in approvals* generally never post to the EDW and so cannot appear; the raw `DOC_POST_STATUS_IND` is exposed for site-specific status codes.
 
 ---
 
