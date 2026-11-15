@@ -17,6 +17,11 @@
 --   * Payments/credit adjustments are stored negative, so every section
 --     and the A/R balances are plain SUMs of TRX."Total".
 --   * Provider Group = PRODUCER."PGroup" via TRX."Producer".
+--
+-- EXCEL PASTING RULE (avoids ODBC error ORA-24374):
+--   Copy ONLY the bare statement, from the word SELECT down to the last
+--   line of the query. Do NOT include any of these comment lines, and the
+--   statement must NOT end with a semicolon.
 -- ============================================================================
 
 
@@ -61,7 +66,7 @@ GROUP BY
         WHEN 6 THEN 4 WHEN 4 THEN 5 WHEN 7 THEN 6
     END,
     NVL(TRIM(p."PGroup"), 'No Provider Group')
-ORDER BY "SectionOrder", "Provider Group";
+ORDER BY "SectionOrder", "Provider Group"
 
 
 -- ============================================================================
@@ -76,7 +81,7 @@ SELECT
 FROM axium.trx t
 WHERE t."Type" IN (1, 2, 3, 4, 6, 7)
   AND NVL(t."Deleted", 0) = 0
-  AND t."Date" < TRUNC(SYSDATE, 'MM');
+  AND t."Date" < TRUNC(SYSDATE, 'MM')
 
 
 -- ============================================================================
@@ -114,7 +119,7 @@ GROUP BY
         WHEN 7 THEN 'Insurance Adjustment'
     END
 HAVING ABS(SUM(t."Total" + NVL(a."Allocated", 0))) > 0.005
-ORDER BY 1;
+ORDER BY 1
 
 
 -- ============================================================================
@@ -158,4 +163,4 @@ WHERE t."Type" IN (3, 4, 6, 7)
   AND t."Date" >= TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
   AND t."Date" <  TRUNC(SYSDATE, 'MM')
   AND ABS(t."Total" + NVL(a."Allocated", 0)) > 0.005
-ORDER BY "Section", t."Date", t."Id";
+ORDER BY "Section", t."Date", t."Id"
