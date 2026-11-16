@@ -409,3 +409,68 @@ WHERE d."Batch" = 12345
       ('Unallocated Adjustments', 'Unallocated Insurance Payments', 'Unallocated Payments')
 GROUP BY d."ReportHistoryTypeDescription"
 ORDER BY 1
+
+
+-- ============================================================================
+-- QUERY 12: PRODUCTION MONTHLY REPORT BODY (auto-batch)
+-- VALIDATED penny-exact against the Aug 2026 printout (batch 10377).
+-- Auto-selects the newest summary batch grouped by Provider Group (GroupBy1=2)
+-- covering the previous calendar month. Workflow: run the A/R Reconciliation
+-- report inside axiUm first (that creates the batch), then refresh Excel.
+-- Sections combine Type 1 + 2 as 'Treatments', exactly as the report prints.
+-- Signs: types 3/4/7 are negated for display parity with the printout
+-- (Crystal does the same at print time). Verify Patient Adjustments (-200,152.32
+-- for Aug) on first run; if it shows flipped, move Type 6 into the negated list.
+-- ============================================================================
+SELECT
+    CASE d."Type" WHEN 1 THEN 'Treatments'
+                  WHEN 2 THEN 'Treatments'
+                  WHEN 3 THEN 'Patient Payments'
+                  WHEN 6 THEN 'Patient Adjustments'
+                  WHEN 4 THEN 'Insurance Payments'
+                  WHEN 7 THEN 'Insurance Adjustments'
+                  ELSE 'Type ' || TO_CHAR(d."Type") END AS "Section",
+    NVL(TRIM(d."ReportPGroup"), 'No Provider Group')    AS "Provider Group",
+    SUM(CASE WHEN d."Type" IN (3, 4, 7)
+             THEN - d."ReportTotalChange"
+             ELSE d."ReportTotalChange" END)            AS "Amount"
+FROM axium.ar_recon_saved_data_dtl d
+WHERE d."Batch" = (
+        SELECT MAX(h."Batch")
+        FROM axium.ar_recon_saved_data_hdr h
+        WHERE h."GroupBy1" = 2
+          AND h."IsDetailed" = 0
+          AND h."FromDate" = TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
+          AND h."ToDate" >= LAST_DAY(ADD_MONTHS(TRUNC(SYSDATE), -1)))
+  AND d."ReportHistoryTypeDescription" NOT IN
+      ('Unallocated Adjustments', 'Unallocated Insurance Payments', 'Unallocated Payments')
+GROUP BY
+    CASE d."Type" WHEN 1 THEN 'Treatments'
+                  WHEN 2 THEN 'Treatments'
+                  WHEN 3 THEN 'Patient Payments'
+                  WHEN 6 THEN 'Patient Adjustments'
+                  WHEN 4 THEN 'Insurance Payments'
+                  WHEN 7 THEN 'Insurance Adjustments'
+                  ELSE 'Type ' || TO_CHAR(d."Type") END,
+    NVL(TRIM(d."ReportPGroup"), 'No Provider Group')
+ORDER BY 1, 2
+
+
+-- ============================================================================
+-- QUERY 13: A/R "as at" balance lines for the same auto-selected batch
+-- BeginningBalance = "A/R as at <FromDate>", EndingBalance = "A/R as at <ToDate>"
+-- ============================================================================
+SELECT
+    h."Batch",
+    h."FromDate",
+    h."ToDate",
+    h."BeginningBalance" AS "AR Opening",
+    h."EndingBalance"    AS "AR Closing"
+FROM axium.ar_recon_saved_data_hdr h
+WHERE h."Batch" = (
+        SELECT MAX(h2."Batch")
+        FROM axium.ar_recon_saved_data_hdr h2
+        WHERE h2."GroupBy1" = 2
+          AND h2."IsDetailed" = 0
+          AND h2."FromDate" = TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
+          AND h2."ToDate" >= LAST_DAY(ADD_MONTHS(TRUNC(SYSDATE), -1)))
