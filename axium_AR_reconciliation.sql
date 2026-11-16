@@ -480,3 +480,100 @@ WHERE h."Batch" = (
           AND h2."ToDate"   >= TRUNC(SYSDATE, 'MM') - 1
           AND EXISTS (SELECT 1 FROM axium.ar_recon_saved_data_dtl x
                       WHERE x."Batch" = h2."Batch"))
+
+
+-- ============================================================================
+-- =============  LIVE HISTORY-BASED RECREATION (NO AXIUM RUN)  ===============
+-- Validated penny-exact against the Aug 2026 printout:
+--   Treatments 3,606,892.47 / Pt Pmts -655,400.89 / Pt Adj -200,152.32 /
+--   Ins Pmts -2,029,388.79 / Ins Adj -1,810,128.16  (all five EXACT).
+-- Engine rules, reverse-engineered from axium.HISTORY (the immutable audit
+-- trail - one full TRX snapshot per change, period = ModifiedDate):
+--   * Ledger amount of a charge version: 0 if deleted; else Total for an
+--     office charge (Type 2) or a treatment with Status C or I; else 0.
+--   * Treatments section = sum of ledger-amount deltas between consecutive
+--     versions of each charge, over events in the period.
+--   * The four payment sections = deltas of the charge's Payed / InsPayed /
+--     PtAdj / InsAdj allocation fields, summed over allocation events
+--     (HistoryType 3) plus all office-charge (Type 2) events; Payed,
+--     InsPayed and InsAdj are negated for display parity with the printout.
+--   * Grouping: the snapshot's Producer -> PRODUCER.PGroup. (A producer
+--     change mid-period attributes its delta to the new group; the printout
+--     splits it as Transfer In/Out between groups - same net, +/-3,884 in Aug.)
+-- These scan ~35M history rows with window functions: expect a few minutes.
+-- ============================================================================
+
+
+-- ============================================================================
+-- QUERY 14: REPORT BODY, LIVE FROM HISTORY (previous calendar month)
+-- One row per provider group with all five sections as columns.
+-- To pin a month, replace the two TRUNC expressions with literals, e.g.
+--   DATE '2026-08-01' and DATE '2026-09-01'.
+-- ============================================================================
+WITH ev AS (
+    SELECT h."Type"         AS typ,
+           h."HistoryType"  AS ht,
+           h."ModifiedDate" AS md,
+           TRIM(h."Producer") AS prod,
+           CASE WHEN NVL(h."Deleted",0) <> 0 THEN 0
+                WHEN h."Type" = 2 OR TRIM(h."Status") IN ('C','I') THEN NVL(h."Total",0)
+                ELSE 0 END AS led,
+           LAG(CASE WHEN NVL(h."Deleted",0) <> 0 THEN 0
+                WHEN h."Type" = 2 OR TRIM(h."Status") IN ('C','I') THEN NVL(h."Total",0)
+                ELSE 0 END) OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS pled,
+           NVL(h."Payed",0)    AS pay,
+           LAG(NVL(h."Payed",0))    OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS ppay,
+           NVL(h."InsPayed",0) AS ipay,
+           LAG(NVL(h."InsPayed",0)) OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS pipay,
+           NVL(h."PtAdj",0)    AS padj,
+           LAG(NVL(h."PtAdj",0))    OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS ppadj,
+           NVL(h."InsAdj",0)   AS iadj,
+           LAG(NVL(h."InsAdj",0))   OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS piadj
+    FROM axium.history h
+    WHERE h."Type" IN (1, 2)
+)
+SELECT NVL(TRIM(p."PGroup"), 'No Provider Group') AS "Provider Group",
+       SUM(led - NVL(pled,0))                     AS "Treatments",
+       - SUM(CASE WHEN ht = 3 OR typ = 2 THEN pay  - NVL(ppay,0)  ELSE 0 END) AS "Patient Payments",
+       SUM(CASE WHEN ht = 3 OR typ = 2 THEN padj - NVL(ppadj,0) ELSE 0 END)   AS "Patient Adjustments",
+       - SUM(CASE WHEN ht = 3 OR typ = 2 THEN ipay - NVL(pipay,0) ELSE 0 END) AS "Insurance Payments",
+       - SUM(CASE WHEN ht = 3 OR typ = 2 THEN iadj - NVL(piadj,0) ELSE 0 END) AS "Insurance Adjustments"
+FROM ev
+LEFT JOIN axium.producer p
+       ON TRIM(p."Producer") = ev.prod
+WHERE ev.md >= TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
+  AND ev.md <  TRUNC(SYSDATE, 'MM')
+GROUP BY NVL(TRIM(p."PGroup"), 'No Provider Group')
+ORDER BY 1
+
+
+-- ============================================================================
+-- QUERY 15: A/R "as at" BALANCES, LIVE FROM HISTORY
+-- Opening = cumulative ledger deltas before the month start;
+-- Closing  = before the month end. Validation targets for August 2026:
+--   Opening 20,816,258.52 / Closing 19,728,080.83.
+-- ============================================================================
+WITH ev AS (
+    SELECT h."ModifiedDate" AS md,
+           CASE WHEN NVL(h."Deleted",0) <> 0 THEN 0
+                WHEN h."Type" = 2 OR TRIM(h."Status") IN ('C','I') THEN NVL(h."Total",0)
+                ELSE 0 END AS led,
+           LAG(CASE WHEN NVL(h."Deleted",0) <> 0 THEN 0
+                WHEN h."Type" = 2 OR TRIM(h."Status") IN ('C','I') THEN NVL(h."Total",0)
+                ELSE 0 END) OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS pled,
+           NVL(h."Payed",0) + NVL(h."InsPayed",0) + NVL(h."InsAdj",0) - NVL(h."PtAdj",0) AS alloc,
+           LAG(NVL(h."Payed",0) + NVL(h."InsPayed",0) + NVL(h."InsAdj",0) - NVL(h."PtAdj",0))
+               OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS palloc,
+           h."HistoryType" AS ht,
+           h."Type" AS typ
+    FROM axium.history h
+    WHERE h."Type" IN (1, 2)
+)
+SELECT SUM(CASE WHEN md < TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
+               THEN (led - NVL(pled,0))
+                    - (CASE WHEN ht = 3 OR typ = 2 THEN alloc - NVL(palloc,0) ELSE 0 END)
+               ELSE 0 END) AS "AR Opening",
+       SUM((led - NVL(pled,0))
+           - (CASE WHEN ht = 3 OR typ = 2 THEN alloc - NVL(palloc,0) ELSE 0 END)) AS "AR Closing"
+FROM ev
+WHERE md < TRUNC(SYSDATE, 'MM')
