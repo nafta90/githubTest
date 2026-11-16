@@ -443,7 +443,7 @@ WHERE d."Batch" = (
           AND h."FromDate" >= TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
           AND h."FromDate" <  TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM') + 1
           AND h."ToDate"   >= TRUNC(SYSDATE, 'MM') - 1)
-  AND d."ReportHistoryTypeDescription" NOT IN
+  AND NVL(d."ReportHistoryTypeDescription", 'x') NOT IN
       ('Unallocated Adjustments', 'Unallocated Insurance Payments', 'Unallocated Payments')
 GROUP BY
     CASE d."Type" WHEN 1 THEN 'Treatments'
