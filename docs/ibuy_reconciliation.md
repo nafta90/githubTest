@@ -19,7 +19,11 @@ Join the Jaggaer/iBuy invoice export (buyer invoice search, "transaction export"
 | `PO Line No` | `PO_LINE_ITEM_NBR` | Works for regular POs. **Not for standing orders** — there, many iBuy lines map to Banner's single line, so join those at invoice level only. |
 | `Supplier Number` (strip the leading `@`) | `VEND_ID` | Tie-breaker across vendors. |
 
-### Power Query steps (Excel / Power BI)
+### Ready-made Power Query code
+
+- **[`powerquery/ibuy_reconciliation.pq`](../powerquery/ibuy_reconciliation.pq)** contains the full M code — four queries to paste into blank queries (install steps are in the file header). It implements everything below plus the duplicate-line collapse, the standing-order fallback, a `MATCH_STATUS` column, and a header-charges column. Use it instead of building the steps manually.
+
+### Power Query steps (Excel / Power BI) — manual version
 
 1. **Query 1 — EDW:** ODBC → Oracle → paste `vendor_activity_report.sql`. Add a custom column `INV_KEY = Text.Upper(Text.Trim([VEND_INV_NBR]))`.
 2. **Query 2 — iBuy:** load the CSV (file origin 1252). Add `INV_KEY = Text.Upper(Text.Trim([Supplier Invoice No]))`.
