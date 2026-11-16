@@ -577,3 +577,48 @@ SELECT SUM(CASE WHEN md < TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
            - (CASE WHEN ht = 3 OR typ = 2 THEN alloc - NVL(palloc,0) ELSE 0 END)) AS "AR Closing"
 FROM ev
 WHERE md < TRUNC(SYSDATE, 'MM')
+
+
+-- ============================================================================
+-- QUERY 16: ALL MONTHS AT ONCE - the full reconciliation history
+-- Month x Provider Group x all five sections, every period in one result.
+-- Perfect for pivot tables and multi-year trend analysis. Same engine and
+-- cost as Query 14 (one scan of history); narrow the final WHERE if you
+-- only want recent years.
+-- ============================================================================
+WITH ev AS (
+    SELECT h."Type"         AS typ,
+           h."HistoryType"  AS ht,
+           h."ModifiedDate" AS md,
+           TRIM(h."Producer") AS prod,
+           CASE WHEN NVL(h."Deleted",0) <> 0 THEN 0
+                WHEN h."Type" = 2 OR TRIM(h."Status") IN ('C','I') THEN NVL(h."Total",0)
+                ELSE 0 END AS led,
+           LAG(CASE WHEN NVL(h."Deleted",0) <> 0 THEN 0
+                WHEN h."Type" = 2 OR TRIM(h."Status") IN ('C','I') THEN NVL(h."Total",0)
+                ELSE 0 END) OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS pled,
+           NVL(h."Payed",0)    AS pay,
+           LAG(NVL(h."Payed",0))    OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS ppay,
+           NVL(h."InsPayed",0) AS ipay,
+           LAG(NVL(h."InsPayed",0)) OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS pipay,
+           NVL(h."PtAdj",0)    AS padj,
+           LAG(NVL(h."PtAdj",0))    OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS ppadj,
+           NVL(h."InsAdj",0)   AS iadj,
+           LAG(NVL(h."InsAdj",0))   OVER (PARTITION BY h."Type", h."Id", h."Treatment" ORDER BY h."History") AS piadj
+    FROM axium.history h
+    WHERE h."Type" IN (1, 2)
+)
+SELECT TRUNC(ev.md, 'MM')                         AS "Month",
+       NVL(TRIM(p."PGroup"), 'No Provider Group') AS "Provider Group",
+       SUM(led - NVL(pled,0))                     AS "Treatments",
+       - SUM(CASE WHEN ht = 3 OR typ = 2 THEN pay  - NVL(ppay,0)  ELSE 0 END) AS "Patient Payments",
+       SUM(CASE WHEN ht = 3 OR typ = 2 THEN padj - NVL(ppadj,0) ELSE 0 END)   AS "Patient Adjustments",
+       - SUM(CASE WHEN ht = 3 OR typ = 2 THEN ipay - NVL(pipay,0) ELSE 0 END) AS "Insurance Payments",
+       - SUM(CASE WHEN ht = 3 OR typ = 2 THEN iadj - NVL(piadj,0) ELSE 0 END) AS "Insurance Adjustments"
+FROM ev
+LEFT JOIN axium.producer p
+       ON TRIM(p."Producer") = ev.prod
+WHERE ev.md IS NOT NULL
+  AND ev.md < TRUNC(SYSDATE, 'MM')
+GROUP BY TRUNC(ev.md, 'MM'), NVL(TRIM(p."PGroup"), 'No Provider Group')
+ORDER BY 1, 2
