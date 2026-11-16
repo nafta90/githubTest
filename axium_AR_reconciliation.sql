@@ -442,7 +442,9 @@ WHERE d."Batch" = (
           AND h."IsDetailed" = 0
           AND h."FromDate" >= TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
           AND h."FromDate" <  TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM') + 1
-          AND h."ToDate"   >= TRUNC(SYSDATE, 'MM') - 1)
+          AND h."ToDate"   >= TRUNC(SYSDATE, 'MM') - 1
+          AND EXISTS (SELECT 1 FROM axium.ar_recon_saved_data_dtl x
+                      WHERE x."Batch" = h."Batch"))
   AND NVL(d."ReportHistoryTypeDescription", 'x') NOT IN
       ('Unallocated Adjustments', 'Unallocated Insurance Payments', 'Unallocated Payments')
 GROUP BY
@@ -475,4 +477,6 @@ WHERE h."Batch" = (
           AND h2."IsDetailed" = 0
           AND h2."FromDate" >= TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM')
           AND h2."FromDate" <  TRUNC(ADD_MONTHS(SYSDATE, -1), 'MM') + 1
-          AND h2."ToDate"   >= TRUNC(SYSDATE, 'MM') - 1)
+          AND h2."ToDate"   >= TRUNC(SYSDATE, 'MM') - 1
+          AND EXISTS (SELECT 1 FROM axium.ar_recon_saved_data_dtl x
+                      WHERE x."Batch" = h2."Batch"))
