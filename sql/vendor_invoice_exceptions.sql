@@ -32,22 +32,35 @@
      INV_OPEN_PD_IND (raw)     - EDW open/paid indicator on the invoice
      DOC_POST_STATUS_IND (raw) - posted-document status indicator
 
+   Parameters (edit the PARAMS block -- no bind variables):
+     start_dt / end_dt - invoice date window (default: past 2 years)
+     coll_cd           - college code (COLL_LEVEL_3_CD). Set to 'FN'.
+     org_cd            - optional Org filter. One org ('123456') or a
+                         comma-separated list ('123456,123457'). Matches the
+                         ORG_CD on the invoice's FOAP distributions; an
+                         invoice is kept if ANY of its distributions hits one
+                         of the orgs. NULL = all orgs in the college.
+     vend_id           - optional single vendor (T_VEND.VEND_ID)
+     sitting_days      - unpaid-age threshold for SITTING UNPAID
+
    Default scope: only invoices with at least one issue, cancelled invoices
-   excluded, past 2 years, college FN. See the two "TOGGLE" comments to
-   include cancelled invoices or to list every open invoice instead.
+   excluded, past 2 years, college FN, all orgs. See the two "TOGGLE"
+   comments to include cancelled invoices or to list every open invoice
+   instead.
    ========================================================================== */
 
 WITH params AS (
     SELECT
         ADD_MONTHS(TRUNC(SYSDATE), -24) AS start_dt,     -- past 2 years
         CAST(NULL AS DATE)              AS end_dt,
-        'FN'                            AS coll_cd,      -- Dentistry
+        'FN'                            AS coll_cd,      -- college: Dentistry
+        CAST(NULL AS VARCHAR2(400))     AS org_cd,       -- e.g. '123456' or '123456,123457'
         CAST(NULL AS VARCHAR2(30))      AS vend_id,
         30                              AS sitting_days  -- unpaid-age threshold
     FROM dual
 ),
 scope AS (
-    /* In-scope invoices: college + date window (+ optional vendor). */
+    /* In-scope invoices: college + date window (+ optional org / vendor). */
     SELECT DISTINCT
         iv.EDW_FIN_DOC_ID
     FROM  T_INV_VCHR iv
@@ -59,6 +72,11 @@ scope AS (
           AND org.ORG_CD_CUR_INFO_IND = 'Y'
     CROSS JOIN params prm
     WHERE org.COLL_LEVEL_3_CD = NVL(prm.coll_cd, 'FN')
+      /* Org filter: NULL = all orgs; otherwise match any org in the
+         comma-separated list (spaces ignored). */
+      AND ( prm.org_cd IS NULL
+            OR INSTR(',' || REPLACE(prm.org_cd, ' ', '') || ',',
+                     ',' || ad.ORG_CD || ',') > 0 )
       AND ( prm.start_dt IS NULL OR iv.INV_VCHR_DT >= prm.start_dt )
       AND ( prm.end_dt   IS NULL OR iv.INV_VCHR_DT <  prm.end_dt + 1 )
       /* TOGGLE: delete the next line to include cancelled invoices */
@@ -89,6 +107,20 @@ ad_sum AS (
     FROM  T_INV_VCHR_ACCTG_DETL ad
     JOIN  scope s ON s.EDW_FIN_DOC_ID = ad.EDW_FIN_DOC_ID
     GROUP BY ad.EDW_FIN_DOC_ID
+),
+org_list AS (
+    /* Distinct orgs charged on each invoice (all of its distributions,
+       not just the ones that matched the org filter). */
+    SELECT
+        d.EDW_FIN_DOC_ID,
+        LISTAGG(d.ORG_CD, ', ')
+            WITHIN GROUP (ORDER BY d.ORG_CD)                AS ORG_CD_LIST
+    FROM (
+        SELECT DISTINCT ad.EDW_FIN_DOC_ID, ad.ORG_CD
+        FROM  T_INV_VCHR_ACCTG_DETL ad
+        JOIN  scope s ON s.EDW_FIN_DOC_ID = ad.EDW_FIN_DOC_ID
+    ) d
+    GROUP BY d.EDW_FIN_DOC_ID
 ),
 pay_sum AS (
     /* Check activity rolled up per invoice. */
@@ -129,6 +161,7 @@ rpt AS (
         iv.INV_VCHR_PMT_DUE_DT,
         iv.INV_VCHR_POST_DT,
         podoc.POST_DOC_NBR                                  AS PO_NBR,
+        ol.ORG_CD_LIST,
         ads.INVOICED_NET_AMT,
         NVL(ps.PAID_GROSS_AMT, 0)                           AS PAID_AMT,
         ads.INVOICED_NET_AMT - NVL(ps.PAID_GROSS_AMT, 0)    AS UNPAID_AMT,
@@ -197,6 +230,7 @@ rpt AS (
     JOIN  ad_sum ads          ON ads.EDW_FIN_DOC_ID = s.EDW_FIN_DOC_ID
     LEFT JOIN li_sum lis      ON lis.EDW_FIN_DOC_ID = s.EDW_FIN_DOC_ID
     LEFT JOIN pay_sum ps      ON ps.EDW_FIN_DOC_ID  = s.EDW_FIN_DOC_ID
+    LEFT JOIN org_list ol     ON ol.EDW_FIN_DOC_ID  = s.EDW_FIN_DOC_ID
     LEFT JOIN T_VEND v        ON v.EDW_PARTY_ID = iv.INV_VCHR_VEND_EDW_PARTY_ID
     LEFT JOIN T_POST_DOC invdoc ON invdoc.EDW_FIN_DOC_ID = iv.EDW_FIN_DOC_ID
     LEFT JOIN T_PO po         ON po.EDW_FIN_DOC_ID = iv.PO_EDW_FIN_DOC_ID
