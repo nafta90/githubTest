@@ -86,8 +86,12 @@ pay AS (
           AND bc.BANK_CHK_BANK_CD = bcd.BANK_CHK_BANK_CD
     LEFT JOIN T_POST_DOC chkdoc
           ON  chkdoc.EDW_FIN_DOC_ID = bcd.BANK_CHECK_EDW_FIN_DOC_ID
+    LEFT JOIN T_VEND pv
+          ON  pv.EDW_PARTY_ID = pinv.INV_VCHR_VEND_EDW_PARTY_ID
     WHERE ( prm.start_dt IS NULL OR pinv.INV_VCHR_DT >= prm.start_dt )
       AND ( prm.end_dt   IS NULL OR pinv.INV_VCHR_DT <  prm.end_dt + 1 )
+      /* vendor filter pushed down so a single-vendor run stays small */
+      AND ( prm.vend_id  IS NULL OR pv.VEND_ID = prm.vend_id )
     GROUP BY
         bcd.INV_VCHR_EDW_FIN_DOC_ID,
         bcd.INV_VCHR_LINE_ITEM_NBR,
@@ -111,9 +115,13 @@ doc_txt AS (
     JOIN  T_INV_VCHR tinv
           ON  tinv.EDW_FIN_DOC_ID = pdt.EDW_FIN_DOC_ID
     CROSS JOIN params prm
+    LEFT JOIN T_VEND tv
+          ON  tv.EDW_PARTY_ID = tinv.INV_VCHR_VEND_EDW_PARTY_ID
     WHERE pdt.POST_DOC_CLAUSE_NBR IS NULL
       AND ( prm.start_dt IS NULL OR tinv.INV_VCHR_DT >= prm.start_dt )
       AND ( prm.end_dt   IS NULL OR tinv.INV_VCHR_DT <  prm.end_dt + 1 )
+      /* vendor filter pushed down so a single-vendor run stays small */
+      AND ( prm.vend_id  IS NULL OR tv.VEND_ID = prm.vend_id )
     GROUP BY
         pdt.EDW_FIN_DOC_ID,
         pdt.POST_DOC_LINE_ITEM_NBR
