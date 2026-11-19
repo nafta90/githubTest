@@ -140,6 +140,12 @@ SELECT
        by the year it ends (e.g. 2024-07-01..2025-06-30 -> 2025). Differs from
        FY_CD below, which is the fiscal year the FOAP distribution posted to. */
     EXTRACT(YEAR FROM ADD_MONTHS(iv.INV_VCHR_DT, 6))    AS INV_FISCAL_YEAR,
+    /* DATE-typed helper for Excel pivot TIMELINES (which only accept date
+       fields and only know calendar years). Invoice date shifted +6 months,
+       so the timeline's YEARS level = fiscal year and QUARTERS level =
+       fiscal quarter (Q1 = Jul-Sep). Do NOT use its months/days levels --
+       those are shifted and will be mislabeled. */
+    TRUNC(ADD_MONTHS(iv.INV_VCHR_DT, 6))                AS INV_FISCAL_TIMELINE_DT,
     iv.INV_VCHR_TRAN_DT,
     iv.INV_VCHR_PMT_DUE_DT,
     iv.INV_VCHR_TYPE_IND,
